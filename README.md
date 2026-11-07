@@ -61,6 +61,7 @@ stub on HA. Never put them in this repo.**
 1. Paste `ha-stub.yaml.example` into the device's YAML in the add-on. Keep the API key and AP password it generated.
 2. Push changes to `main`.
 3. In the add-on, click **Install → Wirelessly**.
+4. **Add the device to HA's ESPHome integration** (Settings → Devices & services → Discovered → crowpanel, or Add integration → ESPHome). The Builder add-on alone does *not* do this. Without it, no entity states reach the device and the panel stays on `Waiting for Home Assistant...`.
 
 `refresh: 0s` makes the add-on fetch the latest `main` on every build. Pin
 `ref:` to a tag or SHA once things are stable.
@@ -99,6 +100,9 @@ set these substitutions in the stub:
 
 Notes:
 - **Services are read as text, on purpose.** ESPHome's `homeassistant` binary sensor ignores `unavailable` and keeps its last `on`/`off`, so a dead check would still show UP. Text keeps the real state, which shows as `NO DATA`.
+- **Proxmox API token needs its own ACL.** With "Privilege Separation" on, a token ignores its user's and group's roles. Grant it read-only access, or the node shows up with zero entities:
+  `pveum acl modify / --tokens '<user>@pve!<token>' --roles PVEAuditor`
+- **Proxmox `*_status` binary sensors mean "running", not "healthy".** A container whose app crashed still shows UP.
 - **A ping only proves the host answers.** Prefer an HTTP check or an integration's own health entity for "is the app OK".
 - **The device needs no HA-side config** beyond being adopted in the ESPHome integration. The HA sensors are `internal: true` on the device, so they are not re-exported.
 
