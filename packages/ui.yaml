@@ -19,7 +19,8 @@ substitutions:
 
 esphome:
   includes:
-    - include/dashboard.h
+    # Relative to this file, so it resolves from a remote git package too.
+    - ../include/dashboard.h
 
 font:
   # 1 bpp everywhere: anti-aliased glyphs smear on a binary panel.
