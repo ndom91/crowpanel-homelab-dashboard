@@ -159,4 +159,4 @@ make check-secrets               # run before every commit
 - **Status as of last session:**
   - Hardware-verified: "1b" layout with live CPU/mem charts, 6 service cells with uptimes, header LED/Wi-Fi/clock, IPs, host uptime, NTP, add-on builds from GitHub.
   - Not yet seen on hardware: offline banner, a DOWN cell, long-run ghosting, MENU long-press.
-  - GPU entity doesn't exist yet (shows `—` / `NOT WIRED`).
+  - All three metrics (CPU, memory, GPU) are wired to live entities.
