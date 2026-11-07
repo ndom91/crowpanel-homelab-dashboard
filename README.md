@@ -16,25 +16,28 @@ pinned by commit in `packages/board.yaml`.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ HOMELAB                                    ⌂ HA    ≋ -58 dBm   Sat 14:32 │
+│█homelab██████████████████████████ ● home assistant  ▂▄▆█ -69 dBm  Sat 15:28│
 ├────────────────────────┬────────────────────────┬────────────────────────┤
-│ CPU                    │ MEMORY                 │ GPU                    │
-│ 42%                    │ 61%                    │ --       no data       │
-│ ████████░░░░░░░░       │ ████████████░░░░       │ ░░░░░░░░░░░░░░░░       │
-├────────────────────────┴────────────────────────┴────────────────────────┤
-│ [✓ plex  ] [✓ nas   ] [██✗ grafana██] [✓ pihole] [? unifi  ] [✓ hass  ]  │
-│ [  UP    ] [  UP    ] [███ DOWN ████] [  UP    ] [ NO DATA ] [  UP    ]  │
-├──────────────────────────────────────────────────────────────────────────┤
-│ v4 203.0.113.42        v6 2001:db8::1                          upd 14:31 │
+│ CPU                23% │ MEMORY             61% │ GPU                 8% │
+│     /\/\  /\/\/\      │  ________________      │        ____            │
+│ ////////////////////// │ ////////////////////// │ ///////////  ///////// │
+│ -30m     -15m     now  │ -30m     -15m     now  │ -30m     -15m     now  │
+├──────────┬──────────┬──────────┬──────────┬──────────┬───────────────────┤
+│● docker  │● ha-voice│● hassio  │● herdr   │● jellyfin│█○ llama██████████│
+│ up 12d   │ up 3d    │ up 12d   │ up 6h    │ up 12d   │██DOWN 4m█████████│
+├──────────┴──────────┴──────────┴──────────┴──────────┴───────────────────┤
+│ v4 203.0.113.42       v6 2001:db8::1                   uptime 15d 6h 20m │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **UP:** thick outline + check. **DOWN:** fully inverted tile. **Unknown/unavailable:** thin outline + `?` / `NO DATA`.
-- **Missing numbers** show `--` and an empty bar, never `0`.
-- **At ≥ `alert_pct` (90%)**, the column caption inverts.
+- **Header:** your `header_title`, an HA connection LED (filled = connected, hollow = not), Wi-Fi bars + dBm, and the clock.
+- **Charts:** the last 30 minutes, one sample per minute, hatched under the line, on a fixed 0-100 % scale so the three compare. **History starts empty after every reboot or update** and fills over 30 minutes.
+- **Services:** filled LED + `up 12d` when running. **DOWN** inverts the whole cell, with a hollow LED and `DOWN 4m`. Unknown or unavailable shows a thin hollow LED and `no data`.
+- **Missing numbers** show `—`, never `0%`. A metric with no entity configured shows `NOT WIRED`.
+- **At ≥ `alert_pct` (90%)**, the metric caption inverts.
 - **Banner over the header:**
   - `Waiting for Home Assistant...` until the first data arrives.
-  - `OFFLINE since HH:MM - values are stale` after `offline_grace_s` (120 s) without Wi-Fi or an HA API connection. E-paper keeps the last image, so this is what stops old values from looking current.
+  - `OFFLINE since HH:MM - values are stale` after `offline_grace_s` (120 s) without Wi-Fi or an HA connection. E-paper keeps the last image, so this is what stops old values from looking current.
 - **Demo data** shows an inverted `DEMO DATA - NOT LIVE` title, and placeholder addresses (`x.x.x.x (demo)`).
 
 ## Deploying (HA ESPHome add-on)
@@ -74,6 +77,9 @@ set these substitutions in the stub:
 | `entity_ip4` | any entity, state = address | e.g. a DNS IP sensor or router integration |
 | `entity_ip6` | any entity, state = address | Check it's the address you want shown (prefix vs. host, temporary vs. stable). |
 | `entity_svc1..6` | `binary_sensor` (or anything `on`/`off`) | Health check or ping per service |
+| `entity_svc1..6_uptime` | `sensor`, device_class `uptime` (boot timestamp) | Proxmox gives `sensor.<guest>_uptime`. Drives `up 12d`. |
+| `entity_uptime` | `sensor`, device_class `uptime` | Host uptime in the footer, e.g. the Proxmox node's |
+| `header_title` / `ha_label` | text | Header title and the label next to the HA LED |
 | `svc1..6_name` | tile label | `""` hides the tile |
 | `svc1..6_up_when` | `"on"` or `"off"` | `"off"` for `problem`-class sensors |
 
@@ -89,7 +95,7 @@ Notes:
 
 - **Values batch to the minute.** Sensor callbacks only record that data arrived. The screen redraws on the minute, so the panel does one partial refresh (~0.6 s) per minute at most.
 - **Immediate redraw** (2 s debounce) when a service changes state, or when Wi-Fi or the HA connection changes.
-- **Full refresh** (clears ghosting, flashes the panel) every `full_refresh_every` (30) renders, at 03:00 nightly, and on a **long press of MENU (1-5 s)**.
+- **Full refresh** (clears ghosting, flashes the panel) every `full_refresh_every` (60, so about hourly) renders, at 03:00 nightly, and on a **long press of MENU (1-5 s)**.
 
 ## Changing the UI
 

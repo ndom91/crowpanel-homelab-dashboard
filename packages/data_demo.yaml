@@ -2,12 +2,14 @@
 # Exposes the same IDs as data_ha.yaml (see the contract there). Include one
 # or the other, never both.
 #
-# Demo scenario: GPU has no data, service 3 is down, service 5 is unavailable.
+# Demo scenario: service 3 is down, service 5 is unavailable. Charts are
+# prefilled with 30 minutes of fake history at boot.
 # Addresses are placeholder text, not real-looking IPs, so they can't be
 # mistaken for live data.
 
 substitutions:
   demo_mode: "true"
+  entity_gpu: "demo" # anything without "TODO" counts as wired
 
 sensor:
   - platform: template
@@ -26,7 +28,8 @@ sensor:
     id: d_gpu
     internal: true
     update_interval: 60s
-    lambda: return NAN;
+    lambda: return 5.0f + (esp_random() % 10);
+    on_value: [script.execute: on_data]
 
 text_sensor:
   - { platform: template, id: d_ip4, internal: true, update_interval: 60s, lambda: 'return {"x.x.x.x (demo)"};' }
@@ -37,3 +40,74 @@ text_sensor:
   - { platform: template, id: d_svc4, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
   - { platform: template, id: d_svc5, internal: true, update_interval: 60s, lambda: 'return {"unavailable"};' }
   - { platform: template, id: d_svc6, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
+  - platform: template
+    id: d_uptime
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      auto t = id(sntp_time).now();
+      if (!t.is_valid()) return {};
+      return ESPTime::from_epoch_utc(t.timestamp - 1318800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+  - platform: template
+    id: d_svc1_up
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      auto t = id(sntp_time).now();
+      if (!t.is_valid()) return {};
+      return ESPTime::from_epoch_utc(t.timestamp - 1036800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+  - platform: template
+    id: d_svc2_up
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      auto t = id(sntp_time).now();
+      if (!t.is_valid()) return {};
+      return ESPTime::from_epoch_utc(t.timestamp - 259200).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+  - platform: template
+    id: d_svc3_up
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      auto t = id(sntp_time).now();
+      if (!t.is_valid()) return {};
+      return ESPTime::from_epoch_utc(t.timestamp - 1036800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+  - platform: template
+    id: d_svc4_up
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      auto t = id(sntp_time).now();
+      if (!t.is_valid()) return {};
+      return ESPTime::from_epoch_utc(t.timestamp - 21600).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+  - platform: template
+    id: d_svc5_up
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      auto t = id(sntp_time).now();
+      if (!t.is_valid()) return {};
+      return ESPTime::from_epoch_utc(t.timestamp - 1036800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+  - platform: template
+    id: d_svc6_up
+    internal: true
+    update_interval: 60s
+    lambda: |-
+      auto t = id(sntp_time).now();
+      if (!t.is_valid()) return {};
+      return ESPTime::from_epoch_utc(t.timestamp - 3600).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+
+esphome:
+  on_boot:
+    - priority: -10
+      then:
+        - lambda: |-
+            // Fake 30 minutes of history so the charts aren't empty in demo.
+            float cpu = 30, mem = 60;
+            for (int i = 0; i < dash::HIST_N; i++) {
+              cpu = std::max(5.0f, std::min(95.0f, cpu + (int) (esp_random() % 21) - 10));
+              mem = std::max(40.0f, std::min(80.0f, mem + (int) (esp_random() % 5) - 2));
+              dash::hist[0].v[i] = cpu;
+              dash::hist[1].v[i] = mem;
+              dash::hist[2].v[i] = (i > 14 && i < 22) ? 70.0f + (esp_random() % 10) : 3.0f + (esp_random() % 6);
+            }

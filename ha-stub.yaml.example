@@ -6,6 +6,8 @@
 
 substitutions:
   ntp_server: 192.0.2.1       # your LAN NTP server (placeholder)
+  # header_title: myhome.lan    # left of the header bar
+  # ha_label: ha.myhome.lan     # next to the HA connection LED
   # log_level: DEBUG          # only while troubleshooting
 
   # Service tiles: name ("" hides the tile) and which state means healthy.
@@ -19,6 +21,8 @@ substitutions:
   # entity_ip4: sensor.xxx
   # entity_ip6: sensor.xxx
   # entity_svc1: binary_sensor.xxx
+  # entity_svc1_uptime: sensor.xxx_uptime   # boot-time sensor, for "up 12d"
+  # entity_uptime: sensor.xxx_uptime        # host, for the footer
 
 esphome:
   name: crowpanel

@@ -3,6 +3,8 @@
 # - Sensor callbacks only record that data arrived. The screen redraws on the
 #   minute (one partial refresh per minute), plus right away (debounced) when a
 #   service changes state or Wi-Fi / HA connectivity changes.
+# - Charts keep 31 one-minute samples (-30m .. now). The minute tick shifts
+#   them; history starts empty after each reboot.
 # - Every `full_refresh_every` renders, and nightly at 03:00, the next refresh
 #   is a full one to clear ghosting. Long-press MENU (>1 s) does the same.
 
@@ -11,7 +13,7 @@ substitutions:
   offline_grace_s: "120"
   # Values at or above this percentage invert their caption.
   alert_pct: "90"
-  full_refresh_every: "30"
+  full_refresh_every: "60" # ~hourly at one render per minute
   # Which raw HA state means "healthy" for each service: "on" for
   # connectivity/running sensors, "off" for problem-class sensors.
   svc1_up_when: "on"
@@ -20,13 +22,14 @@ substitutions:
   svc4_up_when: "on"
   svc5_up_when: "on"
   svc6_up_when: "on"
+  # data_ha.yaml sets the real default; "TODO" in it means "not wired".
+  entity_gpu: sensor.TODO_gpu_utilization_percent
   # Set to "true" by data_demo.yaml. Shows a DEMO marker so fake values
   # can never pass for live ones.
   demo_mode: "false"
 
 globals:
   - { id: have_data, type: bool, initial_value: "false" }
-  - { id: last_data_str, type: std::string, initial_value: '""' }
   - { id: offline_since_ms, type: uint32_t, initial_value: "0" }
   - { id: offline_since_str, type: std::string, initial_value: '""' }
   - { id: render_count, type: uint32_t, initial_value: "0" }
@@ -36,10 +39,7 @@ script:
   - id: on_data
     mode: restart
     then:
-      - lambda: |-
-          id(have_data) = true;
-          auto t = id(sntp_time).now();
-          id(last_data_str) = t.is_valid() ? t.strftime("%H:%M") : std::string("");
+      - lambda: id(have_data) = true;
 
   # Service changes should show up without waiting for the minute tick.
   - id: on_service_data
@@ -54,6 +54,13 @@ script:
     mode: restart
     then:
       - delay: 2s
+      - script.execute: render
+
+  # Minute tick: advance the chart history by one sample, then redraw.
+  - id: tick
+    mode: single
+    then:
+      - lambda: 'for (auto &h : dash::hist) h.shift();'
       - script.execute: render
 
   - id: render
@@ -88,48 +95,64 @@ script:
           std::string banner_text;
           if (stale) {
             banner_text = id(offline_since_str).empty()
-                         ? std::string("OFFLINE  -  values are stale")
-                         : "OFFLINE since " + id(offline_since_str) + "  -  values are stale";
+                              ? std::string("OFFLINE  -  values are stale")
+                              : "OFFLINE since " + id(offline_since_str) + "  -  values are stale";
           } else if (!demo && !id(have_data)) {
             banner_text = "Waiting for Home Assistant...";
           }
           set_hidden(id(banner), banner_text.empty());
           if (!banner_text.empty())
-            set_text(id(lbl_banner), banner_text.c_str());
+            set_text(id(lbl_banner), banner_text);
 
-          // Header. Demo mode inverts the title so fake values can't pass as live.
-          set_text(id(lbl_title), demo ? " DEMO DATA - NOT LIVE " : "HOMELAB");
-          set_inverted(id(lbl_title), demo);
+          // Header. Demo inverts the title so fake values can't pass as live.
+          set_text(id(lbl_title), demo ? "DEMO DATA - NOT LIVE" : "${header_title}");
+          set_inverted(id(lbl_title), !demo);  // normally white on the black bar
+          set_led(id(led_ha), api_ok, 1, lv_color_white(), lv_color_black());
           const float rssi = id(wifi_rssi).state;
-          std::string status = std::string(api_ok ? ICON_HA : ICON_HA_OFF) + (api_ok ? " HA" : " HA OFF");
-          status += std::string("    ") + wifi_icon(wifi_ok, rssi) + " ";
-          status += (wifi_ok && !std::isnan(rssi)) ? std::to_string((int) rssi) + " dBm" : std::string("--");
-          status += "    " + (now.is_valid() ? now.strftime("%a %H:%M") : std::string("--:--"));
-          set_text(id(lbl_status), status.c_str());
+          const int level = wifi_level(wifi_ok, rssi);
+          lv_obj_t *bars[4] = {id(wifi_b1), id(wifi_b2), id(wifi_b3), id(wifi_b4)};
+          for (int i = 0; i < 4; i++)
+            set_led(bars[i], i < level, 1, lv_color_white(), lv_color_black());
+          set_text(id(lbl_rssi), (wifi_ok && !std::isnan(rssi)) ? std::to_string((int) rssi) + " dBm"
+                                                                : std::string("-- dBm"));
+          set_text(id(lbl_time), now.is_valid() ? now.strftime("%a %H:%M") : std::string("--:--"));
 
           // Metrics.
-          set_metric(id(val_cpu), id(bar_cpu), id(cap_cpu), id(note_cpu), id(d_cpu).state, ${alert_pct});
-          set_metric(id(val_mem), id(bar_mem), id(cap_mem), id(note_mem), id(d_mem).state, ${alert_pct});
-          set_metric(id(val_gpu), id(bar_gpu), id(cap_gpu), id(note_gpu), id(d_gpu).state, ${alert_pct});
+          const bool gpu_wired = std::string("${entity_gpu}").find("TODO") == std::string::npos;
+          set_metric(id(val_cpu), id(cap_cpu), id(chart_cpu), id(note_cpu), hist[0], id(d_cpu).state, true, ${alert_pct});
+          set_metric(id(val_mem), id(cap_mem), id(chart_mem), id(note_mem), hist[1], id(d_mem).state, true, ${alert_pct});
+          set_metric(id(val_gpu), id(cap_gpu), id(chart_gpu), id(note_gpu), hist[2], id(d_gpu).state, gpu_wired, ${alert_pct});
 
           // Services.
-          set_service(id(tile1), id(tile1_title), id(tile1_status), "${svc1_name}",
-                      parse_service(id(d_svc1).has_state(), id(d_svc1).state, "${svc1_up_when}"));
-          set_service(id(tile2), id(tile2_title), id(tile2_status), "${svc2_name}",
-                      parse_service(id(d_svc2).has_state(), id(d_svc2).state, "${svc2_up_when}"));
-          set_service(id(tile3), id(tile3_title), id(tile3_status), "${svc3_name}",
-                      parse_service(id(d_svc3).has_state(), id(d_svc3).state, "${svc3_up_when}"));
-          set_service(id(tile4), id(tile4_title), id(tile4_status), "${svc4_name}",
-                      parse_service(id(d_svc4).has_state(), id(d_svc4).state, "${svc4_up_when}"));
-          set_service(id(tile5), id(tile5_title), id(tile5_status), "${svc5_name}",
-                      parse_service(id(d_svc5).has_state(), id(d_svc5).state, "${svc5_up_when}"));
-          set_service(id(tile6), id(tile6_title), id(tile6_status), "${svc6_name}",
-                      parse_service(id(d_svc6).has_state(), id(d_svc6).state, "${svc6_up_when}"));
+          const int64_t epoch = now.is_valid() ? (int64_t) now.timestamp : 0;
+          struct ServiceRow {
+            lv_obj_t *cell, *led, *name_lbl, *line2;
+            const char *name;
+            text_sensor::TextSensor *state;
+            const char *up_when;
+            text_sensor::TextSensor *uptime;
+          };
+          const ServiceRow services[6] = {
+              {id(svc1), id(svc1_led), id(svc1_name), id(svc1_line2), "${svc1_name}", id(d_svc1), "${svc1_up_when}", id(d_svc1_up)},
+              {id(svc2), id(svc2_led), id(svc2_name), id(svc2_line2), "${svc2_name}", id(d_svc2), "${svc2_up_when}", id(d_svc2_up)},
+              {id(svc3), id(svc3_led), id(svc3_name), id(svc3_line2), "${svc3_name}", id(d_svc3), "${svc3_up_when}", id(d_svc3_up)},
+              {id(svc4), id(svc4_led), id(svc4_name), id(svc4_line2), "${svc4_name}", id(d_svc4), "${svc4_up_when}", id(d_svc4_up)},
+              {id(svc5), id(svc5_led), id(svc5_name), id(svc5_line2), "${svc5_name}", id(d_svc5), "${svc5_up_when}", id(d_svc5_up)},
+              {id(svc6), id(svc6_led), id(svc6_name), id(svc6_line2), "${svc6_name}", id(d_svc6), "${svc6_up_when}", id(d_svc6_up)},
+          };
+          for (int i = 0; i < 6; i++) {
+            const ServiceRow &r = services[i];
+            set_service(i, r.cell, r.led, r.name_lbl, r.line2, r.name,
+                        parse_service(r.state->has_state(), r.state->state, r.up_when),
+                        r.uptime->has_state(), r.uptime->state, epoch);
+          }
 
           // Footer.
-          set_text(id(lbl_ip4), ("v4 " + addr_or_dash(id(d_ip4).has_state(), id(d_ip4).state)).c_str());
-          set_text(id(lbl_ip6), ("v6 " + addr_or_dash(id(d_ip6).has_state(), id(d_ip6).state)).c_str());
-          set_text(id(lbl_upd), id(last_data_str).empty() ? "" : ("upd " + id(last_data_str)).c_str());
+          set_text(id(lbl_ip4), "v4 " + addr_or_dash(id(d_ip4).has_state(), id(d_ip4).state));
+          set_text(id(lbl_ip6), "v6 " + addr_or_dash(id(d_ip6).has_state(), id(d_ip6).state));
+          const int64_t boot = id(d_uptime).has_state() ? parse_iso8601(id(d_uptime).state) : -1;
+          set_text(id(lbl_uptime), (boot > 0 && epoch > 0) ? "uptime " + dur_long(epoch - boot)
+                                                           : std::string("uptime --"));
 
 time:
   - id: !extend sntp_time
@@ -137,7 +160,7 @@ time:
       # Minute tick: keeps the clock exact and batches value changes.
       - seconds: 0
         then:
-          - script.execute: render
+          - script.execute: tick
       # Nightly clean full refresh.
       - hours: 3
         minutes: 0
@@ -154,7 +177,7 @@ interval:
           condition:
             lambda: return !id(sntp_time).now().is_valid();
           then:
-            - script.execute: render
+            - script.execute: tick
 
 esphome:
   on_boot:

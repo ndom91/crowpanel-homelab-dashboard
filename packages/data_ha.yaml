@@ -8,6 +8,8 @@
 #   sensor       d_cpu, d_mem, d_gpu        percent; NaN = unknown/unavailable
 #   text_sensor  d_svc1 .. d_svc6           raw HA state string
 #   text_sensor  d_ip4, d_ip6               raw HA state string
+#   text_sensor  d_svc1_up .. d_svc6_up     boot time, ISO-8601 (uptime sensors)
+#   text_sensor  d_uptime                   host boot time, ISO-8601
 
 substitutions:
   entity_cpu: sensor.TODO_proxmox_cpu_percent
@@ -21,6 +23,15 @@ substitutions:
   entity_svc4: binary_sensor.TODO_service_4
   entity_svc5: binary_sensor.TODO_service_5
   entity_svc6: binary_sensor.TODO_service_6
+  # Uptime entities: device_class "uptime" sensors whose state is the boot
+  # time (what the Proxmox VE integration provides).
+  entity_uptime: sensor.TODO_host_uptime
+  entity_svc1_uptime: sensor.TODO_service_1_uptime
+  entity_svc2_uptime: sensor.TODO_service_2_uptime
+  entity_svc3_uptime: sensor.TODO_service_3_uptime
+  entity_svc4_uptime: sensor.TODO_service_4_uptime
+  entity_svc5_uptime: sensor.TODO_service_5_uptime
+  entity_svc6_uptime: sensor.TODO_service_6_uptime
 
 sensor:
   # HA "unavailable"/"unknown" arrive as NaN, which the UI renders as "--".
@@ -40,3 +51,11 @@ text_sensor:
   - { platform: homeassistant, id: d_svc4, entity_id: "${entity_svc4}", internal: true, on_value: [script.execute: on_service_data] }
   - { platform: homeassistant, id: d_svc5, entity_id: "${entity_svc5}", internal: true, on_value: [script.execute: on_service_data] }
   - { platform: homeassistant, id: d_svc6, entity_id: "${entity_svc6}", internal: true, on_value: [script.execute: on_service_data] }
+  # Uptimes only change on restart; no redraw needed beyond the minute tick.
+  - { platform: homeassistant, id: d_uptime, entity_id: "${entity_uptime}", internal: true }
+  - { platform: homeassistant, id: d_svc1_up, entity_id: "${entity_svc1_uptime}", internal: true }
+  - { platform: homeassistant, id: d_svc2_up, entity_id: "${entity_svc2_uptime}", internal: true }
+  - { platform: homeassistant, id: d_svc3_up, entity_id: "${entity_svc3_uptime}", internal: true }
+  - { platform: homeassistant, id: d_svc4_up, entity_id: "${entity_svc4_uptime}", internal: true }
+  - { platform: homeassistant, id: d_svc5_up, entity_id: "${entity_svc5_uptime}", internal: true }
+  - { platform: homeassistant, id: d_svc6_up, entity_id: "${entity_svc6_uptime}", internal: true }

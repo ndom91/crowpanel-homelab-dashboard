@@ -1,15 +1,19 @@
-# Dashboard layout: 792x272, pure black/white.
+# Dashboard layout ("1b"): 792x272, pure black/white.
 #
-#   y   0- 34  header: title | HA / Wi-Fi / clock   (offline banner overlays it)
-#   y  44-152  CPU | MEMORY | GPU: caption, big value, bar
-#   y 168-224  six service tiles
-#   y 242-262  footer: public IPv4 | IPv6 | last data
+#   y   0- 30  header bar (black): title | HA link, Wi-Fi bars, clock
+#   y  30-194  CPU | MEMORY | GPU: caption, big value, 243x96 hatched chart, axis
+#   y 194-248  2px rule + six service cells (132px, 1px dividers)
+#   y 248-272  2px rule + footer: IPv4 | IPv6 | host uptime (monospace)
 #
 # Widgets hold only static styling. Values and states are written by the
-# `render` script (refresh.yaml) through include/dashboard.h.
+# `render` script (refresh.yaml) through include/dashboard.h, which looks
+# widgets up by the ids below. Keep the ids if you rework the layout.
 
 substitutions:
-  # Service tile names. Empty string hides the tile.
+  # Header text. Set your own in the top-level config (kept out of the repo).
+  header_title: "homelab"
+  ha_label: "home assistant"
+  # Service cell names. Empty string hides the cell. ~9 characters fit.
   svc1_name: "service-1"
   svc2_name: "service-2"
   svc3_name: "service-3"
@@ -23,217 +27,274 @@ esphome:
     - ../include/dashboard.h
 
 font:
-  # 1 bpp everywhere: anti-aliased glyphs smear on a binary panel.
-  - file: "gfonts://Inter@700"
-    id: font_title
-    size: 20
+  # 1 bpp everywhere: anti-aliased glyphs dither or ghost on 1-bit e-paper.
+  # At 1 bpp thin strokes break up, so stay at >= 12px and weight >= 700.
+  - { file: "gfonts://Montserrat@800", id: f_title, size: 18, bpp: 1 }
+  - file: "gfonts://Montserrat@800"
+    id: f_value
+    size: 32
     bpp: 1
-    extras:
-      - file: { type: web, url: "https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/fonts/materialdesignicons-webfont.ttf" }
-        glyphs: ["\U000F07D0", "\U000F0026", "\U000F0928", "\U000F0925", "\U000F0922", "\U000F091F", "\U000F092E"]
-  - file: "gfonts://Inter@600"
-    id: font_body
-    size: 17
-    bpp: 1
-    extras:
-      - file: { type: web, url: "https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/fonts/materialdesignicons-webfont.ttf" }
-        glyphs: ["\U000F05E0", "\U000F0159", "\U000F0625"]
-  - file: "gfonts://Inter@700"
-    id: font_small
+    glyphs: ["0123456789%- ", "—"]
+  - { file: "gfonts://Montserrat@800", id: f_label, size: 18, bpp: 1 }
+  - { file: "gfonts://Montserrat@700", id: f_name, size: 16, bpp: 1 }
+  - { file: "gfonts://Montserrat@700", id: f_hdr, size: 16, bpp: 1 }
+  - { file: "gfonts://Montserrat@700", id: f_small, size: 14, bpp: 1 }
+  - { file: "gfonts://Montserrat@800", id: f_note, size: 14, bpp: 1 }
+  - { file: "gfonts://Montserrat@700", id: f_axis, size: 12, bpp: 1 }
+  - file: { type: gfonts, family: JetBrains Mono, weight: 700 }
+    id: f_mono
     size: 13
     bpp: 1
-  - file: "gfonts://Inter@800"
-    id: font_big
-    size: 64
-    bpp: 1
-    glyphs: "0123456789-% "
 
 lvgl:
   displays: epd
   buffer_size: 25%
   color_depth: 16
-  default_font: font_body
+  default_font: f_small
   disp_bg_color: 0xFFFFFF
   on_draw_end:
     component.update: epd
   style_definitions:
-    - id: box
+    - id: rule
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_width: 0
+      radius: 0
+      pad_all: 0
+    - id: plain # transparent layout container
+      bg_opa: TRANSP
+      border_width: 0
+      radius: 0
+      pad_all: 0
+    - id: cell
       bg_color: 0xFFFFFF
       bg_opa: COVER
       text_color: 0x000000
       border_width: 0
       radius: 0
       pad_all: 0
-    - id: tile
+    - id: led
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_color: 0x000000
+      border_width: 0
+      radius: 5
+      pad_all: 0
+    - id: bar_on_black # header Wi-Fi bar; filled or outlined in white
       bg_color: 0xFFFFFF
       bg_opa: COVER
-      text_color: 0x000000
-      border_color: 0x000000
-      border_width: 3
+      border_color: 0xFFFFFF
+      border_width: 0
       radius: 0
-      pad_all: 6
+      pad_all: 0
     - id: chip # caption; inverts when the value crosses the alert threshold
       bg_color: 0xFFFFFF
       bg_opa: COVER
       text_color: 0x000000
-      pad_left: 4
-      pad_right: 4
+      pad_left: 3
+      pad_right: 3
       pad_top: 1
       pad_bottom: 1
-    - id: rule
-      bg_color: 0x000000
-      bg_opa: COVER
-      border_width: 0
-      radius: 0
-    - id: bar_track
-      bg_color: 0xFFFFFF
-      bg_opa: COVER
-      border_color: 0x000000
-      border_width: 2
-      radius: 0
-      pad_all: 3
   pages:
     - id: main_page
       bg_color: 0xFFFFFF
+      # Pure black default for every label. LVGL's theme default is dark grey,
+      # which the 1-bit driver renders as white (invisible).
+      text_color: 0x000000
       scrollable: false
       widgets:
-        # --- header
-        - label: { id: lbl_title, x: 12, y: 6, text: "HOMELAB", text_font: font_title, styles: chip }
-        - label: { id: lbl_status, align: TOP_RIGHT, x: -12, y: 6, text: "", text_font: font_title, text_color: 0x000000 }
-        - obj: { x: 0, y: 34, width: 792, height: 2, styles: rule }
-
-        # --- CPU column
-        - label: { id: cap_cpu, x: 12, y: 44, text: "CPU", text_font: font_small, styles: chip }
-        - label: { id: val_cpu, x: 12, y: 64, text: "--", text_font: font_big }
-        - label: { id: note_cpu, x: 162, y: 110, text: "", text_font: font_small }
-        - bar:
-            id: bar_cpu
-            x: 12
-            y: 138
-            width: 240
-            height: 14
-            min_value: 0
-            max_value: 100
-            value: 0
-            styles: bar_track
-            indicator: { bg_color: 0x000000, bg_opa: COVER, radius: 0 }
-
-        # --- MEMORY column
-        - label: { id: cap_mem, x: 276, y: 44, text: "MEMORY", text_font: font_small, styles: chip }
-        - label: { id: val_mem, x: 276, y: 64, text: "--", text_font: font_big }
-        - label: { id: note_mem, x: 426, y: 110, text: "", text_font: font_small }
-        - bar:
-            id: bar_mem
-            x: 276
-            y: 138
-            width: 240
-            height: 14
-            min_value: 0
-            max_value: 100
-            value: 0
-            styles: bar_track
-            indicator: { bg_color: 0x000000, bg_opa: COVER, radius: 0 }
-
-        # --- GPU column
-        - label: { id: cap_gpu, x: 540, y: 44, text: "GPU", text_font: font_small, styles: chip }
-        - label: { id: val_gpu, x: 540, y: 64, text: "--", text_font: font_big }
-        - label: { id: note_gpu, x: 690, y: 110, text: "", text_font: font_small }
-        - bar:
-            id: bar_gpu
-            x: 540
-            y: 138
-            width: 240
-            height: 14
-            min_value: 0
-            max_value: 100
-            value: 0
-            styles: bar_track
-            indicator: { bg_color: 0x000000, bg_opa: COVER, radius: 0 }
-
-        - obj: { x: 264, y: 44, width: 2, height: 108, styles: rule }
-        - obj: { x: 528, y: 44, width: 2, height: 108, styles: rule }
-        - obj: { x: 0, y: 160, width: 792, height: 2, styles: rule }
-
+        # --- header bar
         - obj:
-            id: tile1
-            x: 12
-            y: 168
-            width: 119
-            height: 56
-            styles: tile
+            x: 0
+            y: 0
+            width: 792
+            height: 30
+            styles: rule
+            scrollable: false
             widgets:
-              - label: { id: tile1_title, x: 0, y: 0, text: "${svc1_name}", text_font: font_body, long_mode: CLIP, width: 103 }
-              - label: { id: tile1_status, x: 0, y: 24, text: "NO DATA", text_font: font_small }
+              - label:
+                  id: lbl_title
+                  align: LEFT_MID
+                  x: 9
+                  text: "${header_title}"
+                  text_font: f_title
+                  text_color: 0xFFFFFF
+                  bg_color: 0x000000
+                  bg_opa: COVER
+                  pad_left: 3
+                  pad_right: 3
+              - obj:
+                  align: RIGHT_MID
+                  x: -12
+                  width: SIZE_CONTENT
+                  height: 30
+                  styles: plain
+                  scrollable: false
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    flex_align_main: END
+                    flex_align_cross: CENTER
+                    flex_align_track: CENTER
+                    pad_column: 18
+                  widgets:
+                    - obj:
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: plain
+                        layout: { type: flex, flex_flow: ROW, flex_align_cross: CENTER, flex_align_track: CENTER, pad_column: 6 }
+                        widgets:
+                          - obj: { id: led_ha, width: 9, height: 9, styles: led, bg_color: 0xFFFFFF, border_color: 0xFFFFFF }
+                          - label: { id: lbl_ha, text: "${ha_label}", text_font: f_hdr, text_color: 0xFFFFFF }
+                    - obj:
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: plain
+                        layout: { type: flex, flex_flow: ROW, flex_align_cross: CENTER, flex_align_track: CENTER, pad_column: 6 }
+                        widgets:
+                          - obj:
+                              width: 18
+                              height: 13
+                              styles: plain
+                              widgets:
+                                - obj: { id: wifi_b1, x: 0, y: 9, width: 3, height: 4, styles: bar_on_black }
+                                - obj: { id: wifi_b2, x: 5, y: 6, width: 3, height: 7, styles: bar_on_black }
+                                - obj: { id: wifi_b3, x: 10, y: 3, width: 3, height: 10, styles: bar_on_black }
+                                - obj: { id: wifi_b4, x: 15, y: 0, width: 3, height: 13, styles: bar_on_black }
+                          - label: { id: lbl_rssi, text: "-- dBm", text_font: f_hdr, text_color: 0xFFFFFF }
+                    - label: { id: lbl_time, text: "--:--", text_font: f_title, text_color: 0xFFFFFF }
+
+        # --- CPU
+        - label: { id: cap_cpu, x: 7, y: 41, text: "CPU", text_font: f_label, text_letter_space: 1, styles: chip }
+        - label: { id: val_cpu, x: 10, y: 31, width: 243, text: "—", text_font: f_value, text_align: RIGHT, text_color: 0x000000 }
+        - canvas: { id: chart_cpu, x: 10, y: 79, width: 243, height: 96 }
+        - label: { id: note_cpu, x: 10, y: 118, width: 243, text: "", text_font: f_note, text_align: CENTER, text_color: 0x000000 }
+        - label: { x: 10, y: 177, width: 243, text: "-30m", text_font: f_axis, text_align: LEFT, text_color: 0x000000 }
+        - label: { x: 10, y: 177, width: 243, text: "-15m", text_font: f_axis, text_align: CENTER, text_color: 0x000000 }
+        - label: { x: 10, y: 177, width: 243, text: "now", text_font: f_axis, text_align: RIGHT, text_color: 0x000000 }
+
+        # --- MEMORY
+        - label: { id: cap_mem, x: 271, y: 41, text: "MEMORY", text_font: f_label, text_letter_space: 1, styles: chip }
+        - label: { id: val_mem, x: 274, y: 31, width: 243, text: "—", text_font: f_value, text_align: RIGHT, text_color: 0x000000 }
+        - canvas: { id: chart_mem, x: 274, y: 79, width: 243, height: 96 }
+        - label: { id: note_mem, x: 274, y: 118, width: 243, text: "", text_font: f_note, text_align: CENTER, text_color: 0x000000 }
+        - label: { x: 274, y: 177, width: 243, text: "-30m", text_font: f_axis, text_align: LEFT, text_color: 0x000000 }
+        - label: { x: 274, y: 177, width: 243, text: "-15m", text_font: f_axis, text_align: CENTER, text_color: 0x000000 }
+        - label: { x: 274, y: 177, width: 243, text: "now", text_font: f_axis, text_align: RIGHT, text_color: 0x000000 }
+
+        # --- GPU
+        - label: { id: cap_gpu, x: 535, y: 41, text: "GPU", text_font: f_label, text_letter_space: 1, styles: chip }
+        - label: { id: val_gpu, x: 538, y: 31, width: 243, text: "—", text_font: f_value, text_align: RIGHT, text_color: 0x000000 }
+        - canvas: { id: chart_gpu, x: 538, y: 79, width: 243, height: 96 }
+        - label: { id: note_gpu, x: 538, y: 118, width: 243, text: "", text_font: f_note, text_align: CENTER, text_color: 0x000000 }
+        - label: { x: 538, y: 177, width: 243, text: "-30m", text_font: f_axis, text_align: LEFT, text_color: 0x000000 }
+        - label: { x: 538, y: 177, width: 243, text: "-15m", text_font: f_axis, text_align: CENTER, text_color: 0x000000 }
+        - label: { x: 538, y: 177, width: 243, text: "now", text_font: f_axis, text_align: RIGHT, text_color: 0x000000 }
+
+        - obj: { x: 262, y: 30, width: 2, height: 164, styles: rule }
+        - obj: { x: 526, y: 30, width: 2, height: 164, styles: rule }
+
+        # --- services
+        - obj: { x: 0, y: 194, width: 792, height: 2, styles: rule }
 
         - obj:
-            id: tile2
-            x: 141
-            y: 168
-            width: 119
-            height: 56
-            styles: tile
+            id: svc1
+            x: 0
+            y: 196
+            width: 132
+            height: 52
+            styles: cell
             widgets:
-              - label: { id: tile2_title, x: 0, y: 0, text: "${svc2_name}", text_font: font_body, long_mode: CLIP, width: 103 }
-              - label: { id: tile2_status, x: 0, y: 24, text: "NO DATA", text_font: font_small }
+              - obj: { id: svc1_led, x: 9, y: 11, width: 9, height: 9, styles: led }
+              - label: { id: svc1_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc1_name}", text_font: f_name }
+              - label: { id: svc1_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
 
         - obj:
-            id: tile3
-            x: 270
-            y: 168
-            width: 119
-            height: 56
-            styles: tile
+            id: svc2
+            x: 132
+            y: 196
+            width: 132
+            height: 52
+            styles: cell
             widgets:
-              - label: { id: tile3_title, x: 0, y: 0, text: "${svc3_name}", text_font: font_body, long_mode: CLIP, width: 103 }
-              - label: { id: tile3_status, x: 0, y: 24, text: "NO DATA", text_font: font_small }
+              - obj: { id: svc2_led, x: 9, y: 11, width: 9, height: 9, styles: led }
+              - label: { id: svc2_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc2_name}", text_font: f_name }
+              - label: { id: svc2_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
 
         - obj:
-            id: tile4
-            x: 399
-            y: 168
-            width: 119
-            height: 56
-            styles: tile
+            id: svc3
+            x: 264
+            y: 196
+            width: 132
+            height: 52
+            styles: cell
             widgets:
-              - label: { id: tile4_title, x: 0, y: 0, text: "${svc4_name}", text_font: font_body, long_mode: CLIP, width: 103 }
-              - label: { id: tile4_status, x: 0, y: 24, text: "NO DATA", text_font: font_small }
+              - obj: { id: svc3_led, x: 9, y: 11, width: 9, height: 9, styles: led }
+              - label: { id: svc3_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc3_name}", text_font: f_name }
+              - label: { id: svc3_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
 
         - obj:
-            id: tile5
+            id: svc4
+            x: 396
+            y: 196
+            width: 132
+            height: 52
+            styles: cell
+            widgets:
+              - obj: { id: svc4_led, x: 9, y: 11, width: 9, height: 9, styles: led }
+              - label: { id: svc4_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc4_name}", text_font: f_name }
+              - label: { id: svc4_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
+
+        - obj:
+            id: svc5
             x: 528
-            y: 168
-            width: 119
-            height: 56
-            styles: tile
+            y: 196
+            width: 132
+            height: 52
+            styles: cell
             widgets:
-              - label: { id: tile5_title, x: 0, y: 0, text: "${svc5_name}", text_font: font_body, long_mode: CLIP, width: 103 }
-              - label: { id: tile5_status, x: 0, y: 24, text: "NO DATA", text_font: font_small }
+              - obj: { id: svc5_led, x: 9, y: 11, width: 9, height: 9, styles: led }
+              - label: { id: svc5_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc5_name}", text_font: f_name }
+              - label: { id: svc5_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
 
         - obj:
-            id: tile6
-            x: 657
-            y: 168
-            width: 119
-            height: 56
-            styles: tile
+            id: svc6
+            x: 660
+            y: 196
+            width: 132
+            height: 52
+            styles: cell
             widgets:
-              - label: { id: tile6_title, x: 0, y: 0, text: "${svc6_name}", text_font: font_body, long_mode: CLIP, width: 103 }
-              - label: { id: tile6_status, x: 0, y: 24, text: "NO DATA", text_font: font_small }
+              - obj: { id: svc6_led, x: 9, y: 11, width: 9, height: 9, styles: led }
+              - label: { id: svc6_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc6_name}", text_font: f_name }
+              - label: { id: svc6_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
+
+        - obj: { x: 132, y: 196, width: 1, height: 52, styles: rule }
+        - obj: { x: 264, y: 196, width: 1, height: 52, styles: rule }
+        - obj: { x: 396, y: 196, width: 1, height: 52, styles: rule }
+        - obj: { x: 528, y: 196, width: 1, height: 52, styles: rule }
+        - obj: { x: 660, y: 196, width: 1, height: 52, styles: rule }
 
         # --- footer
-        - obj: { x: 0, y: 232, width: 792, height: 2, styles: rule }
-        - label: { id: lbl_ip4, x: 12, y: 242, text: "v4 --", text_font: font_body, text_color: 0x000000 }
-        - label: { id: lbl_ip6, x: 230, y: 242, text: "v6 --", text_font: font_body, text_color: 0x000000 }
-        - label: { id: lbl_upd, align: TOP_RIGHT, x: -12, y: 242, text: "", text_font: font_body, text_color: 0x000000 }
+        - obj: { x: 0, y: 248, width: 792, height: 2, styles: rule }
+        - label: { id: lbl_ip4, x: 12, y: 252, text: "v4 --", text_font: f_mono, text_color: 0x000000 }
+        - label: { id: lbl_ip6, align: TOP_MID, y: 252, text: "v6 --", text_font: f_mono, text_color: 0x000000, long_mode: CLIP }
+        - label: { id: lbl_uptime, align: TOP_RIGHT, x: -12, y: 252, text: "uptime --", text_font: f_mono, text_color: 0x000000 }
 
         # --- offline / waiting banner. Last so it draws over the header.
+        # White on the black header so it reads as "something is wrong".
         - obj:
             id: banner
             x: 0
             y: 0
             width: 792
-            height: 36
+            height: 30
             hidden: true
-            styles: rule
+            bg_color: 0xFFFFFF
+            bg_opa: COVER
+            border_color: 0x000000
+            border_width: 2
+            radius: 0
+            pad_all: 0
             widgets:
-              - label: { id: lbl_banner, align: CENTER, text: "", text_font: font_title, text_color: 0xFFFFFF }
+              - label: { id: lbl_banner, align: CENTER, text: "", text_font: f_name, text_color: 0x000000 }
