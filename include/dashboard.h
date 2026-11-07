@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 #include <string>
 
 #include "lvgl.h"
@@ -85,6 +86,17 @@ inline int64_t parse_iso8601(const std::string &s) {
   return t;
 }
 
+// ISO-8601 UTC timestamp for `secs` before `now` (epoch seconds), the shape
+// HA uptime sensors use. Demo data only.
+inline std::string iso8601_ago(int64_t now, int64_t secs) {
+  time_t t = (time_t) (now - secs);
+  struct tm tm;
+  gmtime_r(&t, &tm);
+  char buf[32];
+  std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S+00:00", &tm);
+  return buf;
+}
+
 // "45m", "6h", "12d": the largest whole unit.
 inline std::string dur_short(int64_t secs) {
   if (secs < 0) secs = 0;
@@ -108,6 +120,9 @@ inline std::string dur_long(int64_t secs) {
 }
 
 // ---------------------------------------------------------------- charts
+
+// False while an entity substitution still holds its "TODO" placeholder.
+inline bool is_wired(const char *entity) { return std::strstr(entity, "TODO") == nullptr; }
 
 constexpr int HIST_N = 31;  // one sample per minute: -30m .. now
 

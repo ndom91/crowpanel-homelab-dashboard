@@ -35,9 +35,7 @@ font:
     size: 32
     bpp: 1
     glyphs: ["0123456789%- ", "—"]
-  - { file: "gfonts://Montserrat@800", id: f_label, size: 18, bpp: 1 }
   - { file: "gfonts://Montserrat@700", id: f_name, size: 16, bpp: 1 }
-  - { file: "gfonts://Montserrat@700", id: f_hdr, size: 16, bpp: 1 }
   - { file: "gfonts://Montserrat@700", id: f_small, size: 14, bpp: 1 }
   - { file: "gfonts://Montserrat@800", id: f_note, size: 14, bpp: 1 }
   - { file: "gfonts://Montserrat@700", id: f_axis, size: 12, bpp: 1 }
@@ -145,7 +143,7 @@ lvgl:
                         layout: { type: flex, flex_flow: ROW, flex_align_cross: CENTER, flex_align_track: CENTER, pad_column: 6 }
                         widgets:
                           - obj: { id: led_ha, width: 9, height: 9, styles: led, bg_color: 0xFFFFFF, border_color: 0xFFFFFF }
-                          - label: { id: lbl_ha, text: "${ha_label}", text_font: f_hdr, text_color: 0xFFFFFF }
+                          - label: { id: lbl_ha, text: "${ha_label}", text_font: f_name, text_color: 0xFFFFFF }
                     - obj:
                         width: SIZE_CONTENT
                         height: SIZE_CONTENT
@@ -161,114 +159,24 @@ lvgl:
                                 - obj: { id: wifi_b2, x: 5, y: 6, width: 3, height: 7, styles: bar_on_black }
                                 - obj: { id: wifi_b3, x: 10, y: 3, width: 3, height: 10, styles: bar_on_black }
                                 - obj: { id: wifi_b4, x: 15, y: 0, width: 3, height: 13, styles: bar_on_black }
-                          - label: { id: lbl_rssi, text: "-- dBm", text_font: f_hdr, text_color: 0xFFFFFF }
+                          - label: { id: lbl_rssi, text: "-- dBm", text_font: f_name, text_color: 0xFFFFFF }
                     - label: { id: lbl_time, text: "--:--", text_font: f_title, text_color: 0xFFFFFF }
 
-        # --- CPU
-        - label: { id: cap_cpu, x: 7, y: 41, text: "CPU", text_font: f_label, text_letter_space: 1, styles: chip }
-        - label: { id: val_cpu, x: 10, y: 31, width: 243, text: "—", text_font: f_value, text_align: RIGHT, text_color: 0x000000 }
-        - canvas: { id: chart_cpu, x: 10, y: 79, width: 243, height: 96 }
-        - label: { id: note_cpu, x: 10, y: 118, width: 243, text: "", text_font: f_note, text_align: CENTER, text_color: 0x000000 }
-        - label: { x: 10, y: 177, width: 243, text: "-30m", text_font: f_axis, text_align: LEFT, text_color: 0x000000 }
-        - label: { x: 10, y: 177, width: 243, text: "-15m", text_font: f_axis, text_align: CENTER, text_color: 0x000000 }
-        - label: { x: 10, y: 177, width: 243, text: "now", text_font: f_axis, text_align: RIGHT, text_color: 0x000000 }
-
-        # --- MEMORY
-        - label: { id: cap_mem, x: 271, y: 41, text: "MEMORY", text_font: f_label, text_letter_space: 1, styles: chip }
-        - label: { id: val_mem, x: 274, y: 31, width: 243, text: "—", text_font: f_value, text_align: RIGHT, text_color: 0x000000 }
-        - canvas: { id: chart_mem, x: 274, y: 79, width: 243, height: 96 }
-        - label: { id: note_mem, x: 274, y: 118, width: 243, text: "", text_font: f_note, text_align: CENTER, text_color: 0x000000 }
-        - label: { x: 274, y: 177, width: 243, text: "-30m", text_font: f_axis, text_align: LEFT, text_color: 0x000000 }
-        - label: { x: 274, y: 177, width: 243, text: "-15m", text_font: f_axis, text_align: CENTER, text_color: 0x000000 }
-        - label: { x: 274, y: 177, width: 243, text: "now", text_font: f_axis, text_align: RIGHT, text_color: 0x000000 }
-
-        # --- GPU
-        - label: { id: cap_gpu, x: 535, y: 41, text: "GPU", text_font: f_label, text_letter_space: 1, styles: chip }
-        - label: { id: val_gpu, x: 538, y: 31, width: 243, text: "—", text_font: f_value, text_align: RIGHT, text_color: 0x000000 }
-        - canvas: { id: chart_gpu, x: 538, y: 79, width: 243, height: 96 }
-        - label: { id: note_gpu, x: 538, y: 118, width: 243, text: "", text_font: f_note, text_align: CENTER, text_color: 0x000000 }
-        - label: { x: 538, y: 177, width: 243, text: "-30m", text_font: f_axis, text_align: LEFT, text_color: 0x000000 }
-        - label: { x: 538, y: 177, width: 243, text: "-15m", text_font: f_axis, text_align: CENTER, text_color: 0x000000 }
-        - label: { x: 538, y: 177, width: 243, text: "now", text_font: f_axis, text_align: RIGHT, text_color: 0x000000 }
-
+        # --- metrics. Columns at x 0/264/528, 2px rules between them.
+        - !include { file: widgets/metric.yaml, vars: { key: cpu, label: CPU, x: 0 } }
+        - !include { file: widgets/metric.yaml, vars: { key: mem, label: MEMORY, x: 264 } }
+        - !include { file: widgets/metric.yaml, vars: { key: gpu, label: GPU, x: 528 } }
         - obj: { x: 262, y: 30, width: 2, height: 164, styles: rule }
         - obj: { x: 526, y: 30, width: 2, height: 164, styles: rule }
 
-        # --- services
+        # --- services: six 132px cells, 1px dividers
         - obj: { x: 0, y: 194, width: 792, height: 2, styles: rule }
-
-        - obj:
-            id: svc1
-            x: 0
-            y: 196
-            width: 132
-            height: 52
-            styles: cell
-            widgets:
-              - obj: { id: svc1_led, x: 9, y: 11, width: 9, height: 9, styles: led }
-              - label: { id: svc1_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc1_name}", text_font: f_name }
-              - label: { id: svc1_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
-
-        - obj:
-            id: svc2
-            x: 132
-            y: 196
-            width: 132
-            height: 52
-            styles: cell
-            widgets:
-              - obj: { id: svc2_led, x: 9, y: 11, width: 9, height: 9, styles: led }
-              - label: { id: svc2_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc2_name}", text_font: f_name }
-              - label: { id: svc2_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
-
-        - obj:
-            id: svc3
-            x: 264
-            y: 196
-            width: 132
-            height: 52
-            styles: cell
-            widgets:
-              - obj: { id: svc3_led, x: 9, y: 11, width: 9, height: 9, styles: led }
-              - label: { id: svc3_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc3_name}", text_font: f_name }
-              - label: { id: svc3_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
-
-        - obj:
-            id: svc4
-            x: 396
-            y: 196
-            width: 132
-            height: 52
-            styles: cell
-            widgets:
-              - obj: { id: svc4_led, x: 9, y: 11, width: 9, height: 9, styles: led }
-              - label: { id: svc4_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc4_name}", text_font: f_name }
-              - label: { id: svc4_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
-
-        - obj:
-            id: svc5
-            x: 528
-            y: 196
-            width: 132
-            height: 52
-            styles: cell
-            widgets:
-              - obj: { id: svc5_led, x: 9, y: 11, width: 9, height: 9, styles: led }
-              - label: { id: svc5_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc5_name}", text_font: f_name }
-              - label: { id: svc5_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
-
-        - obj:
-            id: svc6
-            x: 660
-            y: 196
-            width: 132
-            height: 52
-            styles: cell
-            widgets:
-              - obj: { id: svc6_led, x: 9, y: 11, width: 9, height: 9, styles: led }
-              - label: { id: svc6_name, x: 24, y: 6, width: 104, long_mode: CLIP, text: "${svc6_name}", text_font: f_name }
-              - label: { id: svc6_line2, x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }
-
+        - !include { file: widgets/service_cell.yaml, vars: { n: 1, x: 0, name: "${svc1_name}" } }
+        - !include { file: widgets/service_cell.yaml, vars: { n: 2, x: 132, name: "${svc2_name}" } }
+        - !include { file: widgets/service_cell.yaml, vars: { n: 3, x: 264, name: "${svc3_name}" } }
+        - !include { file: widgets/service_cell.yaml, vars: { n: 4, x: 396, name: "${svc4_name}" } }
+        - !include { file: widgets/service_cell.yaml, vars: { n: 5, x: 528, name: "${svc5_name}" } }
+        - !include { file: widgets/service_cell.yaml, vars: { n: 6, x: 660, name: "${svc6_name}" } }
         - obj: { x: 132, y: 196, width: 1, height: 52, styles: rule }
         - obj: { x: 264, y: 196, width: 1, height: 52, styles: rule }
         - obj: { x: 396, y: 196, width: 1, height: 52, styles: rule }
@@ -277,9 +185,9 @@ lvgl:
 
         # --- footer
         - obj: { x: 0, y: 248, width: 792, height: 2, styles: rule }
-        - label: { id: lbl_ip4, x: 12, y: 252, text: "v4 --", text_font: f_mono, text_color: 0x000000 }
-        - label: { id: lbl_ip6, align: TOP_MID, y: 252, text: "v6 --", text_font: f_mono, text_color: 0x000000, long_mode: CLIP }
-        - label: { id: lbl_uptime, align: TOP_RIGHT, x: -12, y: 252, text: "uptime --", text_font: f_mono, text_color: 0x000000 }
+        - label: { id: lbl_ip4, x: 12, y: 252, text: "v4 --", text_font: f_mono }
+        - label: { id: lbl_ip6, align: TOP_MID, y: 252, text: "v6 --", text_font: f_mono, long_mode: CLIP }
+        - label: { id: lbl_uptime, align: TOP_RIGHT, x: -12, y: 252, text: "uptime --", text_font: f_mono }
 
         # --- offline / waiting banner. Last so it draws over the header.
         # White on the black header so it reads as "something is wrong".
@@ -297,4 +205,4 @@ lvgl:
             radius: 0
             pad_all: 0
             widgets:
-              - label: { id: lbl_banner, align: CENTER, text: "", text_font: f_name, text_color: 0x000000 }
+              - label: { id: lbl_banner, align: CENTER, text: "", text_font: f_name }

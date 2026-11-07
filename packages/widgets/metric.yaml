@@ -1,0 +1,18 @@
+# One metric column (caption, big value, chart, note, axis), included 3 times
+# by ui.yaml. Vars: key (cpu|mem|gpu), label, x (column left edge).
+# Child positions are relative to the column; ids stay global.
+obj:
+  x: ${x}
+  y: 30
+  width: 262
+  height: 164
+  styles: plain
+  scrollable: false
+  widgets:
+    - label: { id: "cap_${key}", x: 7, y: 11, text: "${label}", text_font: f_title, text_letter_space: 1, styles: chip }
+    - label: { id: "val_${key}", x: 10, y: 1, width: 243, text: "—", text_font: f_value, text_align: RIGHT }
+    - canvas: { id: "chart_${key}", x: 10, y: 49, width: 243, height: 96 }
+    - label: { id: "note_${key}", x: 10, y: 88, width: 243, text: "", text_font: f_note, text_align: CENTER }
+    - label: { x: 10, y: 147, width: 243, text: "-30m", text_font: f_axis, text_align: LEFT }
+    - label: { x: 10, y: 147, width: 243, text: "-15m", text_font: f_axis, text_align: CENTER }
+    - label: { x: 10, y: 147, width: 243, text: "now", text_font: f_axis, text_align: RIGHT }

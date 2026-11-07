@@ -9,7 +9,10 @@
 
 substitutions:
   demo_mode: "true"
-  entity_gpu: "demo" # anything without "TODO" counts as wired
+  # Anything without "TODO" counts as wired.
+  entity_cpu: demo
+  entity_mem: demo
+  entity_gpu: demo
 
 sensor:
   - platform: template
@@ -40,62 +43,14 @@ text_sensor:
   - { platform: template, id: d_svc4, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
   - { platform: template, id: d_svc5, internal: true, update_interval: 60s, lambda: 'return {"unavailable"};' }
   - { platform: template, id: d_svc6, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
-  - platform: template
-    id: d_uptime
-    internal: true
-    update_interval: 60s
-    lambda: |-
-      auto t = id(sntp_time).now();
-      if (!t.is_valid()) return {};
-      return ESPTime::from_epoch_utc(t.timestamp - 1318800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
-  - platform: template
-    id: d_svc1_up
-    internal: true
-    update_interval: 60s
-    lambda: |-
-      auto t = id(sntp_time).now();
-      if (!t.is_valid()) return {};
-      return ESPTime::from_epoch_utc(t.timestamp - 1036800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
-  - platform: template
-    id: d_svc2_up
-    internal: true
-    update_interval: 60s
-    lambda: |-
-      auto t = id(sntp_time).now();
-      if (!t.is_valid()) return {};
-      return ESPTime::from_epoch_utc(t.timestamp - 259200).strftime("%Y-%m-%dT%H:%M:%S+00:00");
-  - platform: template
-    id: d_svc3_up
-    internal: true
-    update_interval: 60s
-    lambda: |-
-      auto t = id(sntp_time).now();
-      if (!t.is_valid()) return {};
-      return ESPTime::from_epoch_utc(t.timestamp - 1036800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
-  - platform: template
-    id: d_svc4_up
-    internal: true
-    update_interval: 60s
-    lambda: |-
-      auto t = id(sntp_time).now();
-      if (!t.is_valid()) return {};
-      return ESPTime::from_epoch_utc(t.timestamp - 21600).strftime("%Y-%m-%dT%H:%M:%S+00:00");
-  - platform: template
-    id: d_svc5_up
-    internal: true
-    update_interval: 60s
-    lambda: |-
-      auto t = id(sntp_time).now();
-      if (!t.is_valid()) return {};
-      return ESPTime::from_epoch_utc(t.timestamp - 1036800).strftime("%Y-%m-%dT%H:%M:%S+00:00");
-  - platform: template
-    id: d_svc6_up
-    internal: true
-    update_interval: 60s
-    lambda: |-
-      auto t = id(sntp_time).now();
-      if (!t.is_valid()) return {};
-      return ESPTime::from_epoch_utc(t.timestamp - 3600).strftime("%Y-%m-%dT%H:%M:%S+00:00");
+  # Boot timestamps, like HA uptime sensors: host 15d, services 12d / 3d / 6h / 1h.
+  - { platform: template, id: d_uptime, internal: true, update_interval: 60s, lambda: 'auto t = id(sntp_time).now(); if (!t.is_valid()) return {}; return dash::iso8601_ago(t.timestamp, 1318800);' }
+  - { platform: template, id: d_svc1_up, internal: true, update_interval: 60s, lambda: 'auto t = id(sntp_time).now(); if (!t.is_valid()) return {}; return dash::iso8601_ago(t.timestamp, 1036800);' }
+  - { platform: template, id: d_svc2_up, internal: true, update_interval: 60s, lambda: 'auto t = id(sntp_time).now(); if (!t.is_valid()) return {}; return dash::iso8601_ago(t.timestamp, 259200);' }
+  - { platform: template, id: d_svc3_up, internal: true, update_interval: 60s, lambda: 'auto t = id(sntp_time).now(); if (!t.is_valid()) return {}; return dash::iso8601_ago(t.timestamp, 1036800);' }
+  - { platform: template, id: d_svc4_up, internal: true, update_interval: 60s, lambda: 'auto t = id(sntp_time).now(); if (!t.is_valid()) return {}; return dash::iso8601_ago(t.timestamp, 21600);' }
+  - { platform: template, id: d_svc5_up, internal: true, update_interval: 60s, lambda: 'auto t = id(sntp_time).now(); if (!t.is_valid()) return {}; return dash::iso8601_ago(t.timestamp, 1036800);' }
+  - { platform: template, id: d_svc6_up, internal: true, update_interval: 60s, lambda: 'auto t = id(sntp_time).now(); if (!t.is_valid()) return {}; return dash::iso8601_ago(t.timestamp, 3600);' }
 
 esphome:
   on_boot:

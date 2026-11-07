@@ -16,8 +16,8 @@ esp32:
   framework:
     type: esp-idf
 
-# WROOM-1 N8R8 ships octal PSRAM; the driver author's tested config uses octal.
-# Some Elecrow docs say quad. If boot loops with PSRAM errors, try `mode: quad`.
+# WROOM-1 N8R8: octal PSRAM, confirmed on hardware. (Some Elecrow docs say quad;
+# they're wrong for this unit.)
 psram:
   mode: octal
   speed: 80MHz

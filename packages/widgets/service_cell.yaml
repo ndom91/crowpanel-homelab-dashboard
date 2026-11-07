@@ -1,0 +1,12 @@
+# One service cell, included 6 times by ui.yaml. Vars: n (1-6), x, name.
+obj:
+  id: svc${n}
+  x: ${x}
+  y: 196
+  width: 132
+  height: 52
+  styles: cell
+  widgets:
+    - obj: { id: "svc${n}_led", x: 9, y: 11, width: 9, height: 9, styles: led }
+    - label: { id: "svc${n}_name", x: 24, y: 6, width: 104, long_mode: CLIP, text: "${name}", text_font: f_name }
+    - label: { id: "svc${n}_line2", x: 9, y: 28, width: 118, long_mode: CLIP, text: "no data", text_font: f_small }

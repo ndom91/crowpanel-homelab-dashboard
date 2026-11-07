@@ -6,7 +6,7 @@
 # - Charts keep 31 one-minute samples (-30m .. now). The minute tick shifts
 #   them; history starts empty after each reboot.
 # - Every `full_refresh_every` renders, and nightly at 03:00, the next refresh
-#   is a full one to clear ghosting. Long-press MENU (>1 s) does the same.
+#   is a full one to clear ghosting. Long-press MENU (1-5 s) does the same.
 
 substitutions:
   # Mark the data stale after this long without a Home Assistant connection.
@@ -22,8 +22,6 @@ substitutions:
   svc4_up_when: "on"
   svc5_up_when: "on"
   svc6_up_when: "on"
-  # data_ha.yaml sets the real default; "TODO" in it means "not wired".
-  entity_gpu: sensor.TODO_gpu_utilization_percent
   # Set to "true" by data_demo.yaml. Shows a DEMO marker so fake values
   # can never pass for live ones.
   demo_mode: "false"
@@ -62,6 +60,12 @@ script:
     then:
       - lambda: 'for (auto &h : dash::hist) h.shift();'
       - script.execute: render
+
+  # Clean full refresh (clears ghosting): nightly and on MENU long-press.
+  - id: full_refresh
+    then:
+      - lambda: id(epd).force_full_update();
+      - lvgl.widget.redraw:
 
   - id: render
     mode: single
@@ -117,11 +121,10 @@ script:
                                                                 : std::string("-- dBm"));
           set_text(id(lbl_time), now.is_valid() ? now.strftime("%a %H:%M") : std::string("--:--"));
 
-          // Metrics.
-          const bool gpu_wired = std::string("${entity_gpu}").find("TODO") == std::string::npos;
-          set_metric(id(val_cpu), id(cap_cpu), id(chart_cpu), id(note_cpu), hist[0], id(d_cpu).state, true, ${alert_pct});
-          set_metric(id(val_mem), id(cap_mem), id(chart_mem), id(note_mem), hist[1], id(d_mem).state, true, ${alert_pct});
-          set_metric(id(val_gpu), id(cap_gpu), id(chart_gpu), id(note_gpu), hist[2], id(d_gpu).state, gpu_wired, ${alert_pct});
+          // Metrics. An entity substitution still holding "TODO" is "not wired".
+          set_metric(id(val_cpu), id(cap_cpu), id(chart_cpu), id(note_cpu), hist[0], id(d_cpu).state, is_wired("${entity_cpu}"), ${alert_pct});
+          set_metric(id(val_mem), id(cap_mem), id(chart_mem), id(note_mem), hist[1], id(d_mem).state, is_wired("${entity_mem}"), ${alert_pct});
+          set_metric(id(val_gpu), id(cap_gpu), id(chart_gpu), id(note_gpu), hist[2], id(d_gpu).state, is_wired("${entity_gpu}"), ${alert_pct});
 
           // Services.
           const int64_t epoch = now.is_valid() ? (int64_t) now.timestamp : 0;
@@ -166,11 +169,10 @@ time:
         minutes: 0
         seconds: 0
         then:
-          - lambda: id(epd).force_full_update();
-          - lvgl.widget.redraw:
+          - script.execute: full_refresh
 
 interval:
-  # Fallback tick until the clock syncs from HA (on_time can't fire before).
+  # Fallback tick until SNTP syncs (on_time can't fire before).
   - interval: 60s
     then:
       - if:
@@ -191,5 +193,4 @@ binary_sensor:
       min_length: 1s
       max_length: 5s
       then:
-        - lambda: id(epd).force_full_update();
-        - lvgl.widget.redraw:
+        - script.execute: full_refresh
