@@ -1,0 +1,43 @@
+# The HA add-on builds straight from main, so a broken push breaks the next
+# Install. This validates both data packages and compiles the firmware.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+
+      - name: Throwaway secrets
+        run: |
+          cat > secrets.yaml <<YAML
+          wifi_ssid: ci
+          wifi_password: ci-password
+          fallback_ap_password: ci-password
+          api_encryption_key: "$(openssl rand -base64 32)"
+          YAML
+
+      - name: Validate (demo data)
+        run: uv run esphome config dev.yaml > /dev/null
+
+      - name: Validate (HA data, TODO placeholders)
+        run: |
+          sed 's#packages/data_demo.yaml#packages/data_ha.yaml#' dev.yaml > ci-ha.yaml
+          uv run esphome config ci-ha.yaml > /dev/null
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            .esphome
+          key: esphome-${{ hashFiles('uv.lock', 'packages/board.yaml') }}
+
+      - name: Compile
+        run: uv run esphome compile dev.yaml

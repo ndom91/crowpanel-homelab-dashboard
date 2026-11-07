@@ -1,7 +1,9 @@
-# Secrets: never commit. Real values live in the HA add-on's secrets.yaml.
+# Secrets and local config: never commit.
 secrets.yaml
-*.secret.yaml
 ha-stub.yaml
+*.local.yaml
+.secret-patterns
+.stub-test/
 
 # Build output
 .esphome/
@@ -13,6 +15,4 @@ build/
 .venv/
 __pycache__/
 
-node_modules
 .DS_Store
-*.local.yaml
