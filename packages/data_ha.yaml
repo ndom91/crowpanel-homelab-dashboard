@@ -1,0 +1,42 @@
+# Live data from Home Assistant over the native API.
+#
+# Every entity ID is a substitution. The defaults are deliberate TODO
+# placeholders; set real IDs in your top-level config (the HA-side stub), not
+# here, so they stay out of the public repo. See README "Entity mapping".
+#
+# Contract shared with data_demo.yaml (ui.yaml only reads these IDs):
+#   sensor       d_cpu, d_mem, d_gpu        percent; NaN = unknown/unavailable
+#   text_sensor  d_svc1 .. d_svc6           raw HA state string
+#   text_sensor  d_ip4, d_ip6               raw HA state string
+
+substitutions:
+  entity_cpu: sensor.TODO_proxmox_cpu_percent
+  entity_mem: sensor.TODO_proxmox_memory_percent
+  entity_gpu: sensor.TODO_gpu_utilization_percent
+  entity_ip4: sensor.TODO_public_ipv4
+  entity_ip6: sensor.TODO_public_ipv6
+  entity_svc1: binary_sensor.TODO_service_1
+  entity_svc2: binary_sensor.TODO_service_2
+  entity_svc3: binary_sensor.TODO_service_3
+  entity_svc4: binary_sensor.TODO_service_4
+  entity_svc5: binary_sensor.TODO_service_5
+  entity_svc6: binary_sensor.TODO_service_6
+
+sensor:
+  # HA "unavailable"/"unknown" arrive as NaN, which the UI renders as "--".
+  - { platform: homeassistant, id: d_cpu, entity_id: "${entity_cpu}", internal: true, on_value: [script.execute: on_data] }
+  - { platform: homeassistant, id: d_mem, entity_id: "${entity_mem}", internal: true, on_value: [script.execute: on_data] }
+  - { platform: homeassistant, id: d_gpu, entity_id: "${entity_gpu}", internal: true, on_value: [script.execute: on_data] }
+
+# Services are read as text, not binary_sensor: ESPHome's HA binary_sensor
+# ignores "unavailable" and keeps its last on/off, which would show a dead
+# health check as UP. Text keeps the real state so the UI can show "?".
+text_sensor:
+  - { platform: homeassistant, id: d_ip4, entity_id: "${entity_ip4}", internal: true, on_value: [script.execute: on_data] }
+  - { platform: homeassistant, id: d_ip6, entity_id: "${entity_ip6}", internal: true, on_value: [script.execute: on_data] }
+  - { platform: homeassistant, id: d_svc1, entity_id: "${entity_svc1}", internal: true, on_value: [script.execute: on_service_data] }
+  - { platform: homeassistant, id: d_svc2, entity_id: "${entity_svc2}", internal: true, on_value: [script.execute: on_service_data] }
+  - { platform: homeassistant, id: d_svc3, entity_id: "${entity_svc3}", internal: true, on_value: [script.execute: on_service_data] }
+  - { platform: homeassistant, id: d_svc4, entity_id: "${entity_svc4}", internal: true, on_value: [script.execute: on_service_data] }
+  - { platform: homeassistant, id: d_svc5, entity_id: "${entity_svc5}", internal: true, on_value: [script.execute: on_service_data] }
+  - { platform: homeassistant, id: d_svc6, entity_id: "${entity_svc6}", internal: true, on_value: [script.execute: on_service_data] }

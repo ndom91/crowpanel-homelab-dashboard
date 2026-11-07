@@ -1,0 +1,38 @@
+# Fake data so the dashboard renders with no Home Assistant entities.
+# Exposes the same IDs as data_ha.yaml (see the contract there). Include one
+# or the other, never both.
+#
+# Demo scenario: GPU has no data, service 3 is down, service 5 is unavailable.
+# Addresses are from the documentation ranges (RFC 5737 / RFC 3849).
+
+substitutions:
+  demo_mode: "true"
+
+sensor:
+  - platform: template
+    id: d_cpu
+    internal: true
+    update_interval: 60s
+    lambda: return 20.0f + (esp_random() % 50);
+    on_value: [script.execute: on_data]
+  - platform: template
+    id: d_mem
+    internal: true
+    update_interval: 60s
+    lambda: return 55.0f + (esp_random() % 15);
+    on_value: [script.execute: on_data]
+  - platform: template
+    id: d_gpu
+    internal: true
+    update_interval: 60s
+    lambda: return NAN;
+
+text_sensor:
+  - { platform: template, id: d_ip4, internal: true, update_interval: 60s, lambda: 'return {"203.0.113.42"};' }
+  - { platform: template, id: d_ip6, internal: true, update_interval: 60s, lambda: 'return {"2001:db8:85a3::8a2e:370:7334"};' }
+  - { platform: template, id: d_svc1, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
+  - { platform: template, id: d_svc2, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
+  - { platform: template, id: d_svc3, internal: true, update_interval: 60s, lambda: 'return {"off"};', on_value: [script.execute: on_service_data] }
+  - { platform: template, id: d_svc4, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
+  - { platform: template, id: d_svc5, internal: true, update_interval: 60s, lambda: 'return {"unavailable"};' }
+  - { platform: template, id: d_svc6, internal: true, update_interval: 60s, lambda: 'return {"on"};' }

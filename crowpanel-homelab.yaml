@@ -1,0 +1,38 @@
+# Local entry point, for `make config` / `make compile` on a dev machine.
+# The HA add-on uses ha-stub.yaml.example instead, which pulls the same
+# packages from GitHub. Keep the two in step.
+#
+# Needs a local secrets.yaml (copy secrets.yaml.example).
+
+substitutions:
+  device_name: crowpanel
+  friendly_name: crowpanel
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: ${device_name} Fallback Hotspot
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+packages:
+  board: !include packages/board.yaml
+  base: !include packages/base.yaml
+  ui: !include packages/ui.yaml
+  refresh: !include packages/refresh.yaml
+  # Swap for packages/data_ha.yaml once the HA entities exist.
+  data: !include packages/data_demo.yaml

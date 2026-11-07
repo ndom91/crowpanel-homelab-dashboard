@@ -1,0 +1,169 @@
+# When and how the screen redraws.
+#
+# - Sensor callbacks only record that data arrived. The screen redraws on the
+#   minute (one partial refresh per minute), plus right away (debounced) when a
+#   service changes state or Wi-Fi / HA connectivity changes.
+# - Every `full_refresh_every` renders, and nightly at 03:00, the next refresh
+#   is a full one to clear ghosting. Long-press MENU (>1 s) does the same.
+
+substitutions:
+  # Mark the data stale after this long without a Home Assistant connection.
+  offline_grace_s: "120"
+  # Values at or above this percentage invert their caption.
+  alert_pct: "90"
+  full_refresh_every: "30"
+  # Which raw HA state means "healthy" for each service: "on" for
+  # connectivity/running sensors, "off" for problem-class sensors.
+  svc1_up_when: "on"
+  svc2_up_when: "on"
+  svc3_up_when: "on"
+  svc4_up_when: "on"
+  svc5_up_when: "on"
+  svc6_up_when: "on"
+  # Set to "true" by data_demo.yaml. Shows a DEMO marker so fake values
+  # can never pass for live ones.
+  demo_mode: "false"
+
+globals:
+  - { id: have_data, type: bool, initial_value: "false" }
+  - { id: last_data_str, type: std::string, initial_value: '""' }
+  - { id: offline_since_ms, type: uint32_t, initial_value: "0" }
+  - { id: offline_since_str, type: std::string, initial_value: '""' }
+  - { id: render_count, type: uint32_t, initial_value: "0" }
+
+script:
+  # Called from every data source's on_value.
+  - id: on_data
+    mode: restart
+    then:
+      - lambda: |-
+          id(have_data) = true;
+          auto t = id(sntp_time).now();
+          id(last_data_str) = t.is_valid() ? t.strftime("%H:%M") : std::string("");
+
+  # Service changes should show up without waiting for the minute tick.
+  - id: on_service_data
+    mode: restart
+    then:
+      - script.execute: on_data
+      - script.execute: render_now
+
+  # Debounced redraw: bursts (boot, HA reconnect replaying every entity)
+  # collapse into one e-paper refresh.
+  - id: render_now
+    mode: restart
+    then:
+      - delay: 2s
+      - script.execute: render
+
+  - id: render
+    mode: single
+    then:
+      - lambda: |-
+          using namespace dash;
+          const bool demo = ${demo_mode};
+          const uint32_t now_ms = millis();
+          auto now = id(sntp_time).now();
+
+          // Connectivity -> offline tracking. millis() for the duration so it
+          // works before the clock syncs; wall time only for the label.
+          const bool wifi_ok = wifi::global_wifi_component->is_connected();
+          const bool api_ok = api::global_api_server->is_connected();
+          if (wifi_ok && api_ok) {
+            id(offline_since_ms) = 0;
+          } else if (id(offline_since_ms) == 0) {
+            id(offline_since_ms) = now_ms | 1;  // 0 means "online"
+            id(offline_since_str) = now.is_valid() ? now.strftime("%H:%M") : std::string("");
+          }
+          const bool stale = !demo && id(offline_since_ms) != 0 &&
+                             (now_ms - id(offline_since_ms)) >= ${offline_grace_s} * 1000UL;
+
+          // Ghosting control: periodic full refresh (the first render is full too).
+          if (id(render_count)++ % ${full_refresh_every} == 0)
+            id(epd).force_full_update();
+
+          // Banner over the header: stale beats waiting; demo shows none.
+          std::string banner_text;
+          if (stale) {
+            banner_text = id(offline_since_str).empty()
+                         ? std::string("OFFLINE  -  values are stale")
+                         : "OFFLINE since " + id(offline_since_str) + "  -  values are stale";
+          } else if (!demo && !id(have_data)) {
+            banner_text = "Waiting for Home Assistant...";
+          }
+          set_hidden(id(banner), banner_text.empty());
+          if (!banner_text.empty())
+            set_text(id(lbl_banner), banner_text.c_str());
+
+          // Header.
+          set_text(id(lbl_title), demo ? "HOMELAB  -  DEMO DATA" : "HOMELAB");
+          const float rssi = id(wifi_rssi).state;
+          std::string status = std::string(api_ok ? ICON_HA : ICON_HA_OFF) + (api_ok ? " HA" : " HA OFF");
+          status += std::string("    ") + wifi_icon(wifi_ok, rssi) + " ";
+          status += (wifi_ok && !std::isnan(rssi)) ? std::to_string((int) rssi) + " dBm" : std::string("--");
+          status += "    " + (now.is_valid() ? now.strftime("%a %H:%M") : std::string("--:--"));
+          set_text(id(lbl_status), status.c_str());
+
+          // Metrics.
+          set_metric(id(val_cpu), id(bar_cpu), id(cap_cpu), id(note_cpu), id(d_cpu).state, ${alert_pct});
+          set_metric(id(val_mem), id(bar_mem), id(cap_mem), id(note_mem), id(d_mem).state, ${alert_pct});
+          set_metric(id(val_gpu), id(bar_gpu), id(cap_gpu), id(note_gpu), id(d_gpu).state, ${alert_pct});
+
+          // Services.
+          set_service(id(tile1), id(tile1_title), id(tile1_status), "${svc1_name}",
+                      parse_service(id(d_svc1).has_state(), id(d_svc1).state, "${svc1_up_when}"));
+          set_service(id(tile2), id(tile2_title), id(tile2_status), "${svc2_name}",
+                      parse_service(id(d_svc2).has_state(), id(d_svc2).state, "${svc2_up_when}"));
+          set_service(id(tile3), id(tile3_title), id(tile3_status), "${svc3_name}",
+                      parse_service(id(d_svc3).has_state(), id(d_svc3).state, "${svc3_up_when}"));
+          set_service(id(tile4), id(tile4_title), id(tile4_status), "${svc4_name}",
+                      parse_service(id(d_svc4).has_state(), id(d_svc4).state, "${svc4_up_when}"));
+          set_service(id(tile5), id(tile5_title), id(tile5_status), "${svc5_name}",
+                      parse_service(id(d_svc5).has_state(), id(d_svc5).state, "${svc5_up_when}"));
+          set_service(id(tile6), id(tile6_title), id(tile6_status), "${svc6_name}",
+                      parse_service(id(d_svc6).has_state(), id(d_svc6).state, "${svc6_up_when}"));
+
+          // Footer.
+          set_text(id(lbl_ip4), ("v4 " + addr_or_dash(id(d_ip4).has_state(), id(d_ip4).state)).c_str());
+          set_text(id(lbl_ip6), ("v6 " + addr_or_dash(id(d_ip6).has_state(), id(d_ip6).state)).c_str());
+          set_text(id(lbl_upd), id(last_data_str).empty() ? "" : ("upd " + id(last_data_str)).c_str());
+
+time:
+  - id: !extend sntp_time
+    on_time:
+      # Minute tick: keeps the clock exact and batches value changes.
+      - seconds: 0
+        then:
+          - script.execute: render
+      # Nightly clean full refresh.
+      - hours: 3
+        minutes: 0
+        seconds: 0
+        then:
+          - lambda: id(epd).force_full_update();
+          - lvgl.widget.redraw:
+
+interval:
+  # Fallback tick until the clock syncs from HA (on_time can't fire before).
+  - interval: 60s
+    then:
+      - if:
+          condition:
+            lambda: return !id(sntp_time).now().is_valid();
+          then:
+            - script.execute: render
+
+esphome:
+  on_boot:
+    - priority: -100
+      then:
+        - script.execute: render_now
+
+binary_sensor:
+  - id: !extend btn_menu
+    on_click:
+      min_length: 1s
+      max_length: 5s
+      then:
+        - lambda: id(epd).force_full_update();
+        - lvgl.widget.redraw:

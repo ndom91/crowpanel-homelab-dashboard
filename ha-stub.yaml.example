@@ -1,0 +1,53 @@
+# Paste into the HA ESPHome add-on as the device's YAML (e.g. crowpanel.yaml).
+# Everything device-specific and secret stays here, on HA. The shared,
+# public pieces come from GitHub.
+#
+# Deploy: push to the repo, then "Install" in the add-on.
+
+substitutions:
+  ntp_server: 192.0.2.1       # your LAN NTP server (placeholder)
+  # log_level: DEBUG          # only while troubleshooting
+
+  # Service tiles: name ("" hides the tile) and which state means healthy.
+  # svc1_name: plex
+  # svc1_up_when: "on"        # "off" for problem-class binary sensors
+
+  # Entity IDs - only needed with data_ha.yaml. See README "Entity mapping".
+  # entity_cpu: sensor.xxx
+  # entity_mem: sensor.xxx
+  # entity_gpu: sensor.xxx
+  # entity_ip4: sensor.xxx
+  # entity_ip6: sensor.xxx
+  # entity_svc1: binary_sensor.xxx
+
+esphome:
+  name: crowpanel
+  friendly_name: crowpanel
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: crowpanel Fallback Hotspot
+    password: "keep-your-generated-one"
+
+captive_portal:
+
+api:
+  encryption:
+    key: "keep-your-generated-key"
+
+ota:
+  - platform: esphome
+
+packages:
+  dashboard:
+    url: https://github.com/ndom91/crowpanel-homelab-dashboard
+    ref: main
+    refresh: 0s   # always pull latest on build; pin a tag/SHA once stable
+    files:
+      - packages/board.yaml
+      - packages/base.yaml
+      - packages/ui.yaml
+      - packages/refresh.yaml
+      - packages/data_demo.yaml   # swap for packages/data_ha.yaml later

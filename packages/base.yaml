@@ -1,0 +1,46 @@
+# Logging, time and connectivity hooks.
+#
+# wifi / api / ota are NOT here on purpose. They carry the device's keys, so
+# they live in your top-level config (the HA-side stub, or the local
+# crowpanel-homelab.yaml). The hooks below merge into those blocks.
+
+substitutions:
+  # INFO keeps sensor states (incl. public IPs) out of the logs.
+  # Use DEBUG only while troubleshooting.
+  log_level: INFO
+  # Set your LAN NTP server in the top-level config (kept out of the repo).
+  ntp_server: pool.ntp.org
+
+esphome:
+  min_version: 2025.12.0 # driver needs this for LVGL idle handling
+
+logger:
+  level: ${log_level}
+  hardware_uart: UART0
+
+wifi:
+  on_connect:
+    - script.execute: render_now
+  on_disconnect:
+    - script.execute: render_now
+
+api:
+  on_client_connected:
+    - script.execute: render_now
+  on_client_disconnected:
+    - script.execute: render_now
+
+# Timezone defaults to the build host's (the HA machine).
+# SNTP against a LAN server: the device's subnet has no internet, and this
+# keeps the clock (and the "offline since" stamp) working while HA is down.
+time:
+  - platform: sntp
+    id: sntp_time
+    servers:
+      - ${ntp_server}
+
+sensor:
+  - platform: wifi_signal
+    id: wifi_rssi
+    internal: true
+    update_interval: 60s

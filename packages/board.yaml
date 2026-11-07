@@ -1,0 +1,74 @@
+# Elecrow CrowPanel ESP32-S3 5.79" e-paper (792x272, dual SSD1683).
+# Pins and init order follow the ESPboards driver example for this exact panel.
+
+esphome:
+  on_boot:
+    # The panel's power rail is on GPIO7. It must be high before the driver
+    # talks to the controllers, or the screen stays blank with clean logs.
+    - priority: 600
+      then:
+        - switch.turn_on: epd_power
+        - delay: 500ms
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+
+# WROOM-1 N8R8 ships octal PSRAM; the driver author's tested config uses octal.
+# Some Elecrow docs say quad. If boot loops with PSRAM errors, try `mode: quad`.
+psram:
+  mode: octal
+  speed: 80MHz
+
+external_components:
+  # Pinned to a commit so upstream changes can't silently break a build.
+  - source: github://ESPBoards/esphome-lvgl-crowpanel-epaper-5.79-4.2@319ad7c6ffc5e15092c7fbff2ce2b7f4500efc05
+    components: [crowpanel_epaper]
+
+switch:
+  - platform: gpio
+    pin: 7
+    id: epd_power
+    restore_mode: ALWAYS_ON
+    internal: true
+
+display:
+  - platform: crowpanel_epaper
+    id: epd
+    model: "5.79in"
+    clk_pin: 12
+    mosi_pin: 11
+    cs_pin: 45
+    dc_pin: 46
+    reset_pin: 47
+    busy_pin: 48
+    invert_colors: true # without this the 5.79" shows black/white swapped
+    # Full refreshes are scheduled by refresh.yaml, not by the driver's counter.
+    full_update_every: 9999
+    auto_clear_enabled: false
+    update_interval: never # LVGL drives updates via on_draw_end
+
+# Front-panel inputs. All active-low with pull-ups.
+binary_sensor:
+  - platform: gpio
+    id: btn_menu
+    internal: true
+    pin: { number: 2, mode: INPUT_PULLUP, inverted: true }
+  - platform: gpio
+    id: btn_exit
+    internal: true
+    pin: { number: 1, mode: INPUT_PULLUP, inverted: true }
+  - platform: gpio
+    id: rot_up
+    internal: true
+    pin: { number: 6, mode: INPUT_PULLUP, inverted: true }
+  - platform: gpio
+    id: rot_down
+    internal: true
+    pin: { number: 4, mode: INPUT_PULLUP, inverted: true }
+  - platform: gpio
+    id: rot_press
+    internal: true
+    pin: { number: 5, mode: INPUT_PULLUP, inverted: true }
