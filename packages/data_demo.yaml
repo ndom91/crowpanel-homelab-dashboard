@@ -3,7 +3,8 @@
 # or the other, never both.
 #
 # Demo scenario: GPU has no data, service 3 is down, service 5 is unavailable.
-# Addresses are from the documentation ranges (RFC 5737 / RFC 3849).
+# Addresses are placeholder text, not real-looking IPs, so they can't be
+# mistaken for live data.
 
 substitutions:
   demo_mode: "true"
@@ -28,8 +29,8 @@ sensor:
     lambda: return NAN;
 
 text_sensor:
-  - { platform: template, id: d_ip4, internal: true, update_interval: 60s, lambda: 'return {"203.0.113.42"};' }
-  - { platform: template, id: d_ip6, internal: true, update_interval: 60s, lambda: 'return {"2001:db8:85a3::8a2e:370:7334"};' }
+  - { platform: template, id: d_ip4, internal: true, update_interval: 60s, lambda: 'return {"x.x.x.x (demo)"};' }
+  - { platform: template, id: d_ip6, internal: true, update_interval: 60s, lambda: 'return {"xxxx:xxxx::x (demo)"};' }
   - { platform: template, id: d_svc1, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
   - { platform: template, id: d_svc2, internal: true, update_interval: 60s, lambda: 'return {"on"};' }
   - { platform: template, id: d_svc3, internal: true, update_interval: 60s, lambda: 'return {"off"};', on_value: [script.execute: on_service_data] }

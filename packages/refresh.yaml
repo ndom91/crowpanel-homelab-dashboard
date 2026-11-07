@@ -95,8 +95,9 @@ script:
           if (!banner_text.empty())
             set_text(id(lbl_banner), banner_text.c_str());
 
-          // Header.
-          set_text(id(lbl_title), demo ? "HOMELAB  -  DEMO DATA" : "HOMELAB");
+          // Header. Demo mode inverts the title so fake values can't pass as live.
+          set_text(id(lbl_title), demo ? " DEMO DATA - NOT LIVE " : "HOMELAB");
+          set_inverted(id(lbl_title), demo);
           const float rssi = id(wifi_rssi).state;
           std::string status = std::string(api_ok ? ICON_HA : ICON_HA_OFF) + (api_ok ? " HA" : " HA OFF");
           status += std::string("    ") + wifi_icon(wifi_ok, rssi) + " ";

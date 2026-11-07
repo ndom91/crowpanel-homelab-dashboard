@@ -98,7 +98,7 @@ lvgl:
       scrollable: false
       widgets:
         # --- header
-        - label: { id: lbl_title, x: 12, y: 6, text: "HOMELAB", text_font: font_title, text_color: 0x000000 }
+        - label: { id: lbl_title, x: 12, y: 6, text: "HOMELAB", text_font: font_title, styles: chip }
         - label: { id: lbl_status, align: TOP_RIGHT, x: -12, y: 6, text: "", text_font: font_title, text_color: 0x000000 }
         - obj: { x: 0, y: 34, width: 792, height: 2, styles: rule }
 

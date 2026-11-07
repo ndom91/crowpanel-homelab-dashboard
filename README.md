@@ -35,7 +35,7 @@ pinned by commit in `packages/board.yaml`.
 - **Banner over the header:**
   - `Waiting for Home Assistant...` until the first data arrives.
   - `OFFLINE since HH:MM - values are stale` after `offline_grace_s` (120 s) without Wi-Fi or an HA API connection. E-paper keeps the last image, so this is what stops old values from looking current.
-- **Demo data** shows `HOMELAB - DEMO DATA` in the title.
+- **Demo data** shows an inverted `DEMO DATA - NOT LIVE` title, and placeholder addresses (`x.x.x.x (demo)`).
 
 ## Repo layout
 
