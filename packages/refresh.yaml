@@ -68,7 +68,9 @@ script:
           // Connectivity -> offline tracking. millis() for the duration so it
           // works before the clock syncs; wall time only for the label.
           const bool wifi_ok = wifi::global_wifi_component->is_connected();
-          const bool api_ok = api::global_api_server->is_connected();
+          // Only HA subscribes to states; log viewers / dashboards don't, so
+          // plain is_connected() would report "HA OK" for a bare log session.
+          const bool api_ok = api::global_api_server->is_connected_with_state_subscription();
           if (wifi_ok && api_ok) {
             id(offline_since_ms) = 0;
           } else if (id(offline_since_ms) == 0) {
