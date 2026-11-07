@@ -2,7 +2,7 @@
 #
 # wifi / api / ota are NOT here on purpose. They carry the device's keys, so
 # they live in your top-level config (the HA-side stub, or the local
-# crowpanel-homelab.yaml). The hooks below merge into those blocks.
+# dev.yaml). The hooks below merge into those blocks.
 
 substitutions:
   # INFO keeps sensor states (incl. public IPs) out of the logs.

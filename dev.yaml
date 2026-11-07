@@ -1,6 +1,8 @@
-# Local entry point, for `make config` / `make compile` on a dev machine.
-# The HA add-on uses ha-stub.yaml.example instead, which pulls the same
-# packages from GitHub. Keep the two in step.
+# DEV ONLY - not the file for the HA add-on (use ha-stub.yaml.example there).
+#
+# Builds from the local packages/ via !include, so unpushed changes can be
+# compiled and OTA'd from a dev machine (`make compile`, `make upload`).
+# Apart from the packages block, keep it in step with ha-stub.yaml.example.
 #
 # Needs a local secrets.yaml (copy secrets.yaml.example).
 

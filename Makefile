@@ -1,13 +1,16 @@
-CONFIG ?= crowpanel-homelab.yaml
+CONFIG ?= dev.yaml
 ESPHOME = uv run esphome
 
-.PHONY: config compile logs check-secrets
+.PHONY: config compile upload logs check-secrets
 
 config:        ## Validate the YAML
 	$(ESPHOME) config $(CONFIG) > /dev/null && echo "config OK"
 
 compile:       ## Full firmware build (local check only; HA add-on deploys)
 	$(ESPHOME) compile $(CONFIG)
+
+upload:        ## OTA local build: make upload DEVICE=crowpanel.local
+	$(ESPHOME) upload $(CONFIG) --device $(DEVICE)
 
 logs:          ## Stream device logs over the API: make logs DEVICE=crowpanel.lan
 	$(ESPHOME) logs $(CONFIG) --device $(DEVICE)

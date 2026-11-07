@@ -49,7 +49,7 @@ pinned by commit in `packages/board.yaml`.
 | `packages/data_ha.yaml` | Home Assistant entities (IDs via substitutions) |
 | `include/dashboard.h` | Render helpers: state → text/inversion |
 | `ha-stub.yaml.example` | The device YAML for the HA ESPHome add-on |
-| `crowpanel-homelab.yaml` | Local entry point for `make config` / `make compile` |
+| `dev.yaml` | Dev-only entry point: builds local `packages/` so unpushed changes can be tested |
 
 ## Deploying (HA ESPHome add-on)
 
@@ -74,7 +74,8 @@ stub on HA. Never put them in this repo.**
 ```sh
 cp secrets.yaml.example secrets.yaml   # dummy values are fine for compiling
 make config      # validate
-make compile     # full build, same packages as the add-on
+make compile     # full build from local packages/ (dev.yaml)
+make upload DEVICE=crowpanel.local   # OTA an unpushed build for testing
 make logs DEVICE=crowpanel.local
 ```
 
