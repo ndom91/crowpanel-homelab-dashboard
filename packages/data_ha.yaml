@@ -2,7 +2,7 @@
 #
 # Every entity ID is a substitution. The defaults are deliberate TODO
 # placeholders; set real IDs in your top-level config (the HA-side stub), not
-# here, so they stay out of the public repo. See README "Entity mapping".
+# here, so they stay out of the public repo. See README "Settings".
 #
 # Provides the same ids as data_demo.yaml. The data contract is in AGENTS.md.
 

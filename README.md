@@ -1,18 +1,14 @@
 # CrowPanel homelab dashboard
 
 ESPHome + LVGL firmware for the Elecrow CrowPanel ESP32-S3 5.79" e-paper
-(792×272, black/white). It shows homelab status from Home Assistant: Proxmox
-CPU and memory, GPU, service up/down tiles, public IPv4/IPv6, and connectivity.
+(792×272, black/white). It shows homelab status from Home Assistant: CPU,
+memory and GPU charts, service up/down tiles, public IPv4/IPv6, and
+connectivity.
 
 ```
 Proxmox / service checks / network → Home Assistant entities
   → ESPHome native API → CrowPanel ESP32-S3 → LVGL e-paper UI
 ```
-
-Display driver: [ESPboards/esphome-lvgl-crowpanel-epaper-5.79-4.2](https://github.com/ESPboards/esphome-lvgl-crowpanel-epaper-5.79-4.2),
-pinned by commit in `packages/board.yaml`.
-
-## Layout
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -30,84 +26,103 @@ pinned by commit in `packages/board.yaml`.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Header:** your `header_title`, an HA connection LED (filled = connected, hollow = not), Wi-Fi bars + dBm, and the clock.
-- **Charts:** the last 30 minutes, one sample per minute, hatched under the line, on a fixed 0-100 % scale so the three compare. **History starts empty after every reboot or update** and fills over 30 minutes.
-- **Services:** filled LED + `up 12d` when running. **DOWN** inverts the whole cell, with a hollow LED and `DOWN 4m`. Unknown or unavailable shows a thin hollow LED and `no data`.
-- **Missing numbers** show `—`, never `0%`. A metric with no entity configured shows `NOT WIRED`.
-- **At ≥ `alert_pct` (90%)**, the metric caption inverts.
-- **Banner over the header:**
-  - `Waiting for Home Assistant...` until the first data arrives.
-  - `OFFLINE since HH:MM - values are stale` after `offline_grace_s` (120 s) without Wi-Fi or an HA connection. E-paper keeps the last image, so this is what stops old values from looking current.
-- **Demo data** shows an inverted `DEMO DATA - NOT LIVE` title, and placeholder addresses (`x.x.x.x (demo)`).
+## What you need
 
-## Deploying (HA ESPHome add-on)
+- **The panel:** Elecrow CrowPanel ESP32-S3 5.79" e-paper.
+- **A USB-C data cable** and **Chrome** (or Edge), for the first flash only.
+- **Home Assistant** with the **ESPHome Device Builder** add-on.
+- **Entities in HA** for what you want shown (see [Settings](#settings)). Until then, the panel runs on demo data.
 
-The add-on holds a thin stub (`ha-stub.yaml.example`) with the device name,
-Wi-Fi, API key, and your substitutions. It pulls the packages from this public
-repo at build time. **Secrets, entity IDs, and LAN addresses live only in the
-stub on HA. Never put them in this repo.**
+## Setup
 
-1. Paste `ha-stub.yaml.example` into the device's YAML in the add-on. Keep the API key and AP password it generated.
-2. Push changes to `main`.
-3. In the add-on, click **Install → Wirelessly**.
-4. **Add the device to HA's ESPHome integration** (Settings → Devices & services → Discovered → crowpanel, or Add integration → ESPHome). The Builder add-on alone does *not* do this. Without it, no entity states reach the device and the panel stays on `Waiting for Home Assistant...`.
+The add-on holds a small device YAML (from `ha-stub.yaml.example`) with your
+Wi-Fi, API key, and settings. It pulls everything else from this repo at
+build time. **Secrets, entity IDs, and LAN addresses stay in that YAML on HA,
+never in this repo.**
 
-`refresh: 0s` makes the add-on fetch the latest `main` on every build. Pin
-`ref:` to a tag or SHA once things are stable.
+**1 → Create the device in the add-on.** Click **New device**, name it `crowpanel`, and pick ESP32-S3. Then edit its YAML: paste `ha-stub.yaml.example`, but keep the API key and AP password the add-on generated. Set `ntp_server` (see the note below).
 
-**First flash only** (factory firmware) has to go over USB. In the add-on, use
-**Install → Manual download → Factory format**, then flash it with
-[web.esphome.io](https://web.esphome.io) in Chrome. After that, use OTA.
+**2 → First flash over USB.** Factory firmware can't do OTA. In the add-on, use **Install → Manual download → Factory format**. Then flash the file with [web.esphome.io](https://web.esphome.io) in Chrome, with the panel plugged in. The panel shows `DEMO DATA - NOT LIVE`.
 
-### Development
+**3 → Add it to Home Assistant.** Settings → Devices & services → Discovered → crowpanel (or Add integration → ESPHome). **The add-on alone does not do this.** Without it, no entity states reach the panel, and it stays on `Waiting for Home Assistant...`.
 
-Local builds, testing, and how the code fits together: see
-[`AGENTS.md`](AGENTS.md).
+**4 → Switch to live data.** In the device YAML, change the last package from `packages/data_demo.yaml` to `packages/data_ha.yaml`. Set the entity substitutions from [Settings](#settings).
 
-## Entity mapping
+**5 → Install → Wirelessly.** Do this after every settings change. The add-on fetches the latest `main` on each build (`refresh: 0s`).
 
-Switch the stub's last package from `data_demo.yaml` to `data_ha.yaml`, then
-set these substitutions in the stub:
+**Time needs an NTP server the panel can reach.** If its network has no internet, point `ntp_server` at your router or another LAN server. Without it, the clock shows `--:--`. The timezone comes from the HA host.
+
+## Settings
+
+All settings are substitutions in the device YAML on HA. Change them, Save, then Install.
+
+**Entities** (only with `data_ha.yaml`; a value containing `TODO` means "not set"):
 
 | Substitution | Expected entity | Notes |
 |---|---|---|
-| `entity_cpu` | `sensor`, % (0-100) | Proxmox integration node CPU |
-| `entity_mem` | `sensor`, % (0-100) | Proxmox gives used bytes/percent; use the percent entity |
-| `entity_gpu` | `sensor`, % (0-100) | Needs its own source (Proxmox doesn't expose GPU). Unset shows `--`. |
-| `entity_ip4` | any entity, state = address | e.g. a DNS IP sensor or router integration |
-| `entity_ip6` | any entity, state = address | Check it's the address you want shown (prefix vs. host, temporary vs. stable). |
-| `entity_svc1..6` | `binary_sensor` (or anything `on`/`off`) | Health check or ping per service |
-| `entity_svc1..6_uptime` | `sensor`, device_class `uptime` (boot timestamp) | Proxmox gives `sensor.<guest>_uptime`. Drives `up 12d`. |
-| `entity_uptime` | `sensor`, device_class `uptime` | Host uptime in the footer, e.g. the Proxmox node's |
-| `header_title` / `ha_label` | text | Header title and the label next to the HA LED |
-| `svc1..6_name` | tile label | `""` hides the tile |
-| `svc1..6_up_when` | `"on"` or `"off"` | `"off"` for `problem`-class sensors |
+| `entity_cpu`, `entity_mem`, `entity_gpu` | `sensor`, % (0-100) | Proxmox gives node CPU and memory %. GPU needs its own source. Unset shows `NOT WIRED`. |
+| `entity_ip4`, `entity_ip6` | any entity, state = address | Check IPv6 is the address you want (prefix vs host, temporary vs stable). |
+| `entity_svc1` .. `entity_svc6` | anything `on`/`off` | Health check, ping, or Proxmox guest status |
+| `entity_svc1_uptime` .. `_svc6_uptime` | `sensor`, device_class `uptime` | Drives `up 12d`. Proxmox gives `sensor.<guest>_uptime`. |
+| `entity_uptime` | `sensor`, device_class `uptime` | Host uptime in the footer |
 
-Notes:
-- **An unavailable service shows `NO DATA`,** never its last known state.
-- **Proxmox API token needs its own ACL.** With "Privilege Separation" on, a token ignores its user's and group's roles. Grant it read-only access, or the node shows up with zero entities:
+**Names and labels:**
+
+| Substitution | Default | Notes |
+|---|---|---|
+| `header_title` | `homelab` | Left of the header bar |
+| `ha_label` | `home assistant` | Next to the HA connection LED |
+| `svc1_name` .. `svc6_name` | `service-N` | About 9 characters fit. `""` hides the tile. |
+| `svc1_up_when` .. `svc6_up_when` | `"on"` | Use `"off"` for `problem`-class sensors |
+
+**Tuning:**
+
+| Substitution | Default | Notes |
+|---|---|---|
+| `ntp_server` | `pool.ntp.org` | Needs internet; set a LAN server if there is none |
+| `alert_pct` | `90` | At or above this, the metric caption inverts |
+| `full_refresh_every` | `60` | Full refresh (clears ghosting) every N redraws, ~hourly |
+| `offline_grace_s` | `120` | Seconds without HA or Wi-Fi before the `OFFLINE` banner |
+| `log_level` | `INFO` | `DEBUG` only while troubleshooting; it logs entity states, including IPs |
+
+### Entity tips
+
+- **Proxmox API token needs its own ACL.** With "Privilege Separation" on, a token ignores its user's and group's roles. Without an ACL, the node shows up with zero entities:
   `pveum acl modify / --tokens '<user>@pve!<token>' --roles PVEAuditor`
-- **Proxmox `*_status` binary sensors mean "running", not "healthy".** A container whose app crashed still shows UP.
-- **A ping only proves the host answers.** Prefer an HTTP check or an integration's own health entity for "is the app OK".
-- **No other HA-side config is needed** beyond adding the device to the ESPHome integration (deploy step 4).
+- **Proxmox `*_status` sensors mean "running", not "healthy".** A container whose app crashed still shows UP.
+- **A ping only proves the host answers.** For "is the app OK", prefer an HTTP check or the integration's own health entity.
 
-## Refresh behaviour
+## How it behaves
 
-- **Values batch to the minute.** Sensor callbacks only record that data arrived. The screen redraws on the minute, so the panel does one partial refresh (~0.6 s) per minute at most.
-- **Immediate redraw** (2 s debounce) when a service changes state, or when Wi-Fi or the HA connection changes.
-- **Full refresh** (clears ghosting, flashes the panel) every `full_refresh_every` (60, so about hourly) renders, at 03:00 nightly, and on a **long press of MENU (1-5 s)**.
+**Screen states:**
 
-## Changing the UI
+- **Services:** filled LED + `up 12d` when running. **DOWN** inverts the whole cell, with a hollow LED and `DOWN 4m`. Unknown or unavailable shows a thin hollow LED and `no data`, never the last known state.
+- **Missing numbers** show `—`, never `0%`.
+- **Charts** show the last 30 minutes on a fixed 0-100 % scale. **History starts empty after every reboot or update** and fills over 30 minutes.
+- **`Waiting for Home Assistant...`** covers the header until the first data arrives.
+- **`OFFLINE since HH:MM - values are stale`** covers the header after `offline_grace_s` without Wi-Fi or HA. E-paper keeps the last image, so this is what stops old values from looking current.
+- **Demo data** shows an inverted `DEMO DATA - NOT LIVE` title and placeholder addresses.
 
-- **Tile names, entities, thresholds:** substitutions in your add-on YAML (`svcN_name`, `alert_pct`, `full_refresh_every`, `offline_grace_s`, ...). Edit them in the add-on, Save, then Install. No push needed.
-- **Layout, fonts, new widgets:** edit `packages/ui.yaml` / `packages/refresh.yaml`, push to `main`, then Install. See `AGENTS.md` for how rendering works.
+**Refresh:**
+
+- **At most one partial refresh (~0.6 s) per minute.** Values batch to the minute.
+- **Immediate redraw** (2 s debounce) when a service changes state, or Wi-Fi or HA connects or drops.
+- **Full refresh** (the panel flashes) every `full_refresh_every` redraws, at 03:00, and on a **long press of MENU (1-5 s)**.
 
 ## Privacy
 
-- **Logger defaults to `INFO`**, so entity states (including public IPs) don't reach the logs. Set `log_level: DEBUG` in the stub only while troubleshooting.
-- **Public IPs are on the physical display.** Keep that in mind for photos.
+- **Public IPs are on the physical display.** Cover them in photos.
+- **Logs stay at `INFO`** by default, so entity states don't reach them.
 
-## Hardware notes
+## Development
 
-- **Pins, PSRAM, and driver settings** are in `packages/board.yaml` and `AGENTS.md`.
-- **Expected compile warnings:** strapping-pin warnings for GPIO45/46 (the panel's CS/DC).
+Changing layout or behaviour means editing `packages/` and pushing to `main`;
+the next Install picks it up. Local builds, testing, and how the code fits
+together are in [`AGENTS.md`](AGENTS.md).
+
+Display driver: [ESPboards/esphome-lvgl-crowpanel-epaper-5.79-4.2](https://github.com/ESPboards/esphome-lvgl-crowpanel-epaper-5.79-4.2),
+pinned by commit in `packages/board.yaml`.
+
+## License
+
+[MIT](LICENSE)

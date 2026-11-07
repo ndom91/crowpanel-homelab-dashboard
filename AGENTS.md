@@ -22,19 +22,21 @@ user's public IPs must never be committed (see "Secrets policy").
 | `packages/board.yaml` | ESP32-S3, PSRAM (octal), GPIO7 panel power, `crowpanel_epaper` driver (pinned SHA), front-panel buttons |
 | `packages/base.yaml` | Logger level, SNTP (`ntp_server` substitution), Wi-Fi/API connect hooks. **No wifi/api/ota blocks.** |
 | `packages/ui.yaml` | Fonts and the LVGL page ("1b" design: header bar, 3 canvas charts, 6 service cells, footer). Static styling only. Band map in its header comment. |
-| `packages/refresh.yaml` | Globals, `on_data` / `render_now` / `render` scripts, minute tick, full-refresh cadence, MENU long-press |
+| `packages/widgets/*.yaml` | `metric.yaml` (one chart column) and `service_cell.yaml`, included by `ui.yaml` with `!include { file, vars }` |
+| `packages/refresh.yaml` | Globals, `on_data` / `render_now` / `render` / `full_refresh` scripts, minute tick, full-refresh cadence, MENU long-press |
 | `packages/data_ha.yaml` | `homeassistant` sensors. Entity IDs are substitutions with `TODO` defaults. |
 | `packages/data_demo.yaml` | Template sensors with fake data, and sets `demo_mode: "true"` |
-| `include/dashboard.h` | C++ render helpers: setters, chart history + canvas drawing, ISO-8601 parsing, durations, service state |
+| `include/dashboard.h` | C++ render helpers: setters, chart history + canvas drawing, ISO-8601 parsing, durations, service state, `is_wired` |
 | `ha-stub.yaml.example` | Template for the device YAML in the HA ESPHome add-on (git-based `packages:`) |
 | `dev.yaml` | Dev-only entry: same as the stub but `!include`s local `packages/` |
-| `Makefile` | `config`, `compile`, `upload`, `logs`, `check-secrets` |
+| `Makefile` | `config`, `compile`, `upload`, `logs`, `stub-test`, `check-secrets`, `hooks` |
+| `.github/workflows/build.yml` | CI: validates both data packages, compiles `dev.yaml` |
 | `pyproject.toml` / `uv.lock` | ESPHome pinned via uv (keep at the add-on's version, currently 2026.10.2) |
 
 Gitignored and local only: `secrets.yaml`, `ha-stub.yaml` (the real stub with
 the user's API key, entity IDs, and LAN settings), `ha-stub.local.yaml` (the
 same, but `!include`ing local packages, for testing unpushed changes with real
-data), `.esphome/`.
+data), `.secret-patterns` (extra regexes for `check-secrets`), `.stub-test/`, `.esphome/`.
 
 ## Architecture
 
@@ -65,14 +67,14 @@ on/off. A dead check would keep showing UP. `parse_service()` maps
 
 ### Render flow
 
-1. Sensor callbacks only set `have_data` and `last_data_str`. They don't touch widgets.
+1. Sensor callbacks only set `have_data`. They don't touch widgets.
 2. The `render` script (a C++ lambda in `refresh.yaml`) runs:
    - on the minute (`time.on_time seconds: 0`);
    - every 60 s via `interval` until the clock syncs;
    - through `render_now` (2 s debounce, mode `restart`), on boot, on service changes, and on Wi-Fi/API connect or disconnect.
 3. `render` works out online/offline, the banner text, and the header, then calls the `dash::` setters for each widget.
 4. **Every LVGL invalidation becomes an e-paper refresh**, because LVGL `on_draw_end` triggers `component.update: epd`. The setters in `dashboard.h` compare against current state and skip no-op changes. Keep that property when adding widgets.
-5. Ghosting control: `render_count % full_refresh_every == 0` calls `id(epd).force_full_update()` before widgets change, so the first render after boot is full. Also at 03:00, and on a MENU long press (`lvgl.widget.redraw`).
+5. Ghosting control: `render_count % full_refresh_every == 0` calls `id(epd).force_full_update()` before widgets change, so the first render after boot is full. Also at 03:00 and on a MENU long press, via the `full_refresh` script (`force_full_update` + `lvgl.widget.redraw`).
 
 ### Charts
 
@@ -80,7 +82,7 @@ on/off. A dead check would keep showing UP. `parse_service()` maps
 - `dash::hist[3]` holds 31 samples (cpu, mem, gpu), fixed 0-100 scale. The `tick` script (minute tick) calls `shift()`. `render` overwrites the last slot with the live value.
 - `draw_chart` writes the buffer directly: white fill, diagonal hatch (`(x + y) % 4 == 0`) under the curve, a 2px line, and a 2px baseline. It only redraws when a rounded sample changed, because a canvas invalidation costs a refresh.
 - **History lives in RAM and resets on every reboot/OTA.** HA history isn't reachable from ESPHome. Demo mode prefills fake history in `on_boot`.
-- **`NOT WIRED`** shows when the entity substitution still contains `TODO` (checked in `render`). `NO DATA` shows when it's wired but has no samples.
+- **`NOT WIRED`** shows when the metric's entity substitution still contains `TODO` (`dash::is_wired`). Both data packages define `entity_cpu/mem/gpu`; demo sets them to `demo`. `NO DATA` shows when it's wired but has no samples.
 
 ### Offline / stale semantics
 
@@ -97,14 +99,15 @@ uv sync                          # first time
 cp secrets.yaml.example secrets.yaml   # dummy values are fine for compile
 make config                      # validate dev.yaml
 make compile                     # full build (first one ~5 min)
-make check-secrets               # run before every commit
+make hooks                       # once: pre-commit runs check-secrets
 ```
 
-- **Test what the add-on will build:** compile the real stub in an **empty directory** with only `ha-stub.yaml` + `secrets.yaml` copied in. Delete the copy afterwards, because it contains secrets. Building from the repo root can hide path bugs: the config dir then contains `include/`, and remote packages never see that. That's how the `dashboard.h` include bug got through.
+- **Test what the add-on will build:** `make stub-test`, after pushing. It compiles `ha-stub.yaml` in `.stub-test/`, which holds no repo files, so packages come from GitHub. Building from the repo root can hide path bugs: the config dir then contains `include/`, and remote packages never see that. That's how the `dashboard.h` include bug got through.
+- **CI** (`.github/workflows/build.yml`) runs on every push. Check it's green after pushing, since the add-on builds from `main`.
 - **OTA from a dev machine:**
-  - `uv run esphome run ha-stub.local.yaml --device <ip> --no-logs` builds **local, unpushed** packages with real entities and LAN settings. Use this to iterate on hardware before committing.
-  - `uv run esphome run ha-stub.yaml ...` builds what the add-on would build (GitHub `main`).
-  - `make upload` uses `dev.yaml` with demo data and lacks the LAN settings (NTP, wifi domain). Use it only for quick experiments.
+  - `make upload CONFIG=ha-stub.local.yaml DEVICE=<ip>` builds **local, unpushed** packages with real entities and LAN settings. Use this to iterate on hardware before committing.
+  - `CONFIG=ha-stub.yaml` builds what the add-on would build (GitHub `main`).
+  - Plain `make upload` uses `dev.yaml` with demo data and lacks the LAN settings (NTP, wifi domain). Use it only for quick experiments.
 - **Never OTA a build with dummy Wi-Fi credentials.** The device drops off the network, and only USB or the fallback AP recovers it. Check `secrets.yaml` first.
 - **Logs:** `uv run esphome logs ha-stub.yaml --device <ip>`. At the default `INFO` level you only see boot and warnings. For sensor traffic, temporarily set `log_level: DEBUG`, then revert. It logs public IPs.
 - **Check which firmware is running:** the `compiled on` line at log start. Builds from the add-on vs a dev machine differ by timestamp.
@@ -121,7 +124,7 @@ make check-secrets               # run before every commit
 
 - **Values that live only in the HA-side stub or local gitignored files:** API key, AP/Wi-Fi passwords, entity IDs, service names, `ntp_server`, `wifi.domain`, LAN hostnames/IPs.
 - **Repo defaults stay placeholders:** `sensor.TODO_*`, `service-N`, `192.0.2.x`, `x.x.x.x (demo)`.
-- **Before each commit:** run `make check-secrets`. Also `git grep` for the user's LAN domain/subnet and API key fragments. The Makefile check can't know those, so check by hand.
+- **`make check-secrets`** runs before each commit (via `make hooks`). It checks generic patterns, plus one regex per line from the gitignored `.secret-patterns`: put the user's LAN domain, subnet, and an API-key fragment there. If that file is missing on a new machine, recreate it before committing.
 
 ## Gotchas (all hit at least once)
 
@@ -132,6 +135,7 @@ make check-secrets               # run before every commit
 - **The device's subnet has no internet.** SNTP must use a LAN server via `ntp_server`, and the timezone comes from the build host. Fonts (`gfonts://`) download at **build** time on the add-on host, which does have internet.
 - **Fonts must stay `bpp: 1`, at 12 px or more and weight 700 or more.** Thinner or smaller Montserrat breaks up into jagged strokes at 1 bpp. Limit `glyphs:` on large fonts. The value font needs the em dash `—` listed.
 - **Colors only `0x000000` / `0xFFFFFF`.** The driver draws anything that isn't pure black as white. A label without a text colour used LVGL's dark-grey default and was invisible (white on white). The page now sets `text_color: 0x000000`, so labels inherit it. Keep explicit colours on anything placed on the black header.
+- **`!include` vars in flow-style YAML must be quoted:** `id: "svc${n}_led"`, not `id: svc${n}_led`. Unquoted `${` inside `{ }` is a YAML parse error.
 - **Service cell names fit about 9 characters** at 16 px (`long_mode: CLIP`, 104 px). Use short `svcN_name`s.
 - **macOS shell:** BSD `sed` has no `\b`, and its `-i` needs `''`. Use `perl -pi -e` or Python for anything non-trivial.
 - **Strapping-pin warnings for GPIO45/46** are expected. Those pins are the panel's CS/DC.
@@ -149,14 +153,16 @@ make check-secrets               # run before every commit
 
 - **New data point:**
   1. Add the same `id` to **both** data packages, with `on_value: script.execute: on_data`.
-  2. Add a widget in `ui.yaml`.
+  2. Add a widget in `ui.yaml` (or the matching `widgets/*.yaml` template).
   3. Set it in `render` through a no-op-skipping setter.
-  4. Document the substitution in the README entity table and `ha-stub.yaml.example` (commented).
+  4. Document the substitution in the README settings table and `ha-stub.yaml.example` (commented).
 - **New page / button navigation:**
   - Buttons are already declared in `board.yaml`. Extend them with `!extend <id>`.
   - Each page switch is a full redraw, so it costs a refresh.
   - Keep the offline banner visible on every page.
-- **Status as of last session:**
-  - Hardware-verified: "1b" layout with live CPU/mem charts, 6 service cells with uptimes, header LED/Wi-Fi/clock, IPs, host uptime, NTP, add-on builds from GitHub.
-  - Not yet seen on hardware: offline banner, a DOWN cell, long-run ghosting, MENU long-press.
-  - All three metrics (CPU, memory, GPU) are wired to live entities.
+
+## Status
+
+- **Hardware-verified:** "1b" layout with live CPU/mem/GPU charts, 6 service cells with uptimes, header LED/Wi-Fi/clock, IPs, host uptime, NTP, add-on builds from GitHub.
+- **Compiled only, not yet flashed:** the audit refactor (`2ce6565`: widget templates, merged fonts).
+- **Not yet seen on hardware:** offline banner, a DOWN cell, long-run ghosting, MENU long-press.

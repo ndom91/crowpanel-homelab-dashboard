@@ -2,19 +2,19 @@
 # Everything device-specific and secret stays here, on HA. The shared,
 # public pieces come from GitHub.
 #
-# Deploy: push to the repo, then "Install" in the add-on.
+# Change settings here, Save, then Install. Layout changes come from the repo.
 
 substitutions:
-  ntp_server: 192.0.2.1       # your LAN NTP server (placeholder)
-  # header_title: myhome.lan    # left of the header bar
-  # ha_label: ha.myhome.lan     # next to the HA connection LED
-  # log_level: DEBUG          # only while troubleshooting
+  # See README "Settings" for every option.
+  ntp_server: 192.0.2.1          # LAN NTP server if the panel has no internet
 
-  # Service tiles: name ("" hides the tile) and which state means healthy.
-  # svc1_name: plex
-  # svc1_up_when: "on"        # "off" for problem-class binary sensors
+  # Names and labels
+  # header_title: myhome.lan
+  # ha_label: ha.myhome.lan
+  # svc1_name: plex              # ~9 chars; "" hides the tile
+  # svc1_up_when: "on"           # "off" for problem-class sensors
 
-  # Entity IDs - only needed with data_ha.yaml. See README "Entity mapping".
+  # Entities (only with data_ha.yaml)
   # entity_cpu: sensor.xxx
   # entity_mem: sensor.xxx
   # entity_gpu: sensor.xxx
@@ -23,6 +23,12 @@ substitutions:
   # entity_svc1: binary_sensor.xxx
   # entity_svc1_uptime: sensor.xxx_uptime   # boot-time sensor, for "up 12d"
   # entity_uptime: sensor.xxx_uptime        # host, for the footer
+
+  # Tuning
+  # alert_pct: "90"
+  # full_refresh_every: "60"
+  # offline_grace_s: "120"
+  # log_level: DEBUG             # only while troubleshooting
 
 esphome:
   name: crowpanel
@@ -55,4 +61,4 @@ packages:
       - packages/base.yaml
       - packages/ui.yaml
       - packages/refresh.yaml
-      - packages/data_demo.yaml   # swap for packages/data_ha.yaml later
+      - packages/data_demo.yaml   # swap for packages/data_ha.yaml (README step 4)
