@@ -10,7 +10,9 @@ Proxmox / service checks / network → Home Assistant entities
   → ESPHome native API → CrowPanel ESP32-S3 → LVGL e-paper UI
 ```
 
-![Photo](./.github/screenshot_001.jpg)
+![Photo](./assets/screenshot_001.jpg)
+
+> The 2U 10" Rack Mount can be found in the assets directory
 
 ## What you need
 
