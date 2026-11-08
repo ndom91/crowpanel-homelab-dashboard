@@ -163,6 +163,5 @@ make hooks                       # once: pre-commit runs check-secrets
 
 ## Status
 
-- **Hardware-verified:** "1b" layout with live CPU/mem/GPU charts, 6 service cells with uptimes, header LED/Wi-Fi/clock, IPs, host uptime, NTP, add-on builds from GitHub.
-- **Audit refactor flashed** (`2ce6565`). Metric values/axis labels went invisible inside the new containers; fixed by container `text_color`.
+- **Hardware-verified:** templated "1b" layout (as of `49f04b0`) with live CPU/mem/GPU charts, 6 service cells with uptimes, header LED/Wi-Fi/clock, IPs, host uptime, NTP, add-on builds from GitHub.
 - **Not yet seen on hardware:** offline banner, a DOWN cell, long-run ghosting, MENU long-press.
