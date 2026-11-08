@@ -1,7 +1,8 @@
-# CrowPanel homelab dashboard
+# 🔎 ESP32 CrowPanel Observability
 
 ESPHome + LVGL firmware for the Elecrow CrowPanel ESP32-S3 5.79" e-paper
-(792×272, black/white). It shows homelab status from Home Assistant: CPU,
+(792×272, black/white)
+[[Source](https://www.elecrow.com/wiki/CrowPanel_ESP32_E-paper_5.79-inch_HMI_Display.html)]. It shows homelab status from Home Assistant: CPU,
 memory and GPU charts, service up/down tiles, public IPv4/IPv6, and
 connectivity.
 
