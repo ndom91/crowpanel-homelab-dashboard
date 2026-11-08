@@ -12,15 +12,15 @@ Proxmox / service checks / network → Home Assistant entities
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│█homelab██████████████████████████ ● home assistant  ▂▄▆█ -69 dBm  Sat 15:28│
+│█ homelab ███████████████████████ ● home assistant  ▂▄▆█ -69 dBm Sat 15:28│
 ├────────────────────────┬────────────────────────┬────────────────────────┤
 │ CPU                23% │ MEMORY             61% │ GPU                 8% │
-│     /\/\  /\/\/\      │  ________________      │        ____            │
+│     /\/\  /\/\/\      │  ________________      │        ____             │
 │ ////////////////////// │ ////////////////////// │ ///////////  ///////// │
 │ -30m     -15m     now  │ -30m     -15m     now  │ -30m     -15m     now  │
 ├──────────┬──────────┬──────────┬──────────┬──────────┬───────────────────┤
-│● docker  │● ha-voice│● hassio  │● herdr   │● jellyfin│█○ llama██████████│
-│ up 12d   │ up 3d    │ up 12d   │ up 6h    │ up 12d   │██DOWN 4m█████████│
+│● docker  │● ha-voice│● hassio  │● herdr   │● jellyfin│ ○ llama           │
+│ up 12d   │ up 3d    │ up 12d   │ up 6h    │ up 12d   │  DOWN 4m          │
 ├──────────┴──────────┴──────────┴──────────┴──────────┴───────────────────┤
 │ v4 203.0.113.42       v6 2001:db8::1                   uptime 15d 6h 20m │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -31,6 +31,7 @@ Proxmox / service checks / network → Home Assistant entities
 - **The panel:** Elecrow CrowPanel ESP32-S3 5.79" e-paper.
 - **A USB-C data cable** and **Chrome** (or Edge), for the first flash only.
 - **Home Assistant** with the **ESPHome Device Builder** add-on.
+- **Proxmox** Integration setup in Home Assistant.
 - **Entities in HA** for what you want shown (see [Settings](#settings)). Until then, the panel runs on demo data.
 
 ## Setup
@@ -51,6 +52,10 @@ never in this repo.**
 **5 → Install → Wirelessly.** Do this after every settings change. The add-on fetches the latest `main` on each build (`refresh: 0s`).
 
 **Time needs an NTP server the panel can reach.** If its network has no internet, point `ntp_server` at your router or another LAN server. Without it, the clock shows `--:--`. The timezone comes from the HA host.
+
+### Updating
+
+Since the device yaml points to this repo, after updates have been pushed, you simply need to hit "Update" or "Install" in ESPHome Device Builder to flash the latest changes to your device.
 
 ## Settings
 
@@ -108,11 +113,6 @@ All settings are substitutions in the device YAML on HA. Change them, Save, then
 - **At most one partial refresh (~0.6 s) per minute.** Values batch to the minute.
 - **Immediate redraw** (2 s debounce) when a service changes state, or Wi-Fi or HA connects or drops.
 - **Full refresh** (the panel flashes) every `full_refresh_every` redraws, at 03:00, and on a **long press of MENU (1-5 s)**.
-
-## Privacy
-
-- **Public IPs are on the physical display.** Cover them in photos.
-- **Logs stay at `INFO`** by default, so entity states don't reach them.
 
 ## Development
 
