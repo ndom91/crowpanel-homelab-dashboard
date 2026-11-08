@@ -2,14 +2,10 @@
 
 ESPHome + LVGL firmware for the Elecrow CrowPanel ESP32-S3 5.79" e-paper
 (792×272, black/white)
-[[Source](https://www.elecrow.com/wiki/CrowPanel_ESP32_E-paper_5.79-inch_HMI_Display.html)]. It shows homelab status from Home Assistant: CPU,
-memory and GPU charts, service up/down tiles, public IPv4/IPv6, and
-connectivity.
+[[Source](https://www.elecrow.com/wiki/CrowPanel_ESP32_E-paper_5.79-inch_HMI_Display.html)]. 
 
-```
-Proxmox / service checks / network → Home Assistant entities
-  → ESPHome native API → CrowPanel ESP32-S3 → LVGL e-paper UI
-```
+It shows homelab status from any monitoring-style Home Assistant
+integration, like the Proxmox integration. CPU, memory and GPU charts, service up/down tiles, public IPv4/IPv6, and connectivity.
 
 ![Photo](./assets/screenshot_001.jpg)
 
