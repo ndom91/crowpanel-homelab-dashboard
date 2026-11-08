@@ -134,7 +134,7 @@ make hooks                       # once: pre-commit runs check-secrets
 - **`!secret` in a remote package falls back to the top-level config's `secrets.yaml`.** Fine, but the packages no longer use secrets anyway.
 - **The device's subnet has no internet.** SNTP must use a LAN server via `ntp_server`, and the timezone comes from the build host. Fonts (`gfonts://`) download at **build** time on the add-on host, which does have internet.
 - **Fonts must stay `bpp: 1`, at 12 px or more and weight 700 or more.** Thinner or smaller Montserrat breaks up into jagged strokes at 1 bpp. Limit `glyphs:` on large fonts. The value font needs the em dash `—` listed.
-- **Colors only `0x000000` / `0xFFFFFF`.** The driver draws anything that isn't pure black as white. A label without a text colour used LVGL's dark-grey default and was invisible (white on white). The page now sets `text_color: 0x000000`, so labels inherit it. Keep explicit colours on anything placed on the black header.
+- **Colors only `0x000000` / `0xFFFFFF`.** The driver draws anything that isn't pure black as white. A label without a text colour used LVGL's dark-grey default and was invisible (white on white). The page now sets `text_color: 0x000000`, so labels inherit it. Keep explicit colours on anything placed on the black header. **Every container `obj` resets text colour** (LVGL theme), so labels inside one don't inherit the page's black. Set `text_color: 0x000000` on the container (see `widgets/metric.yaml`; `cell` style does it for service cells).
 - **`!include` vars in flow-style YAML must be quoted:** `id: "svc${n}_led"`, not `id: svc${n}_led`. Unquoted `${` inside `{ }` is a YAML parse error.
 - **Service cell names fit about 9 characters** at 16 px (`long_mode: CLIP`, 104 px). Use short `svcN_name`s.
 - **macOS shell:** BSD `sed` has no `\b`, and its `-i` needs `''`. Use `perl -pi -e` or Python for anything non-trivial.
@@ -164,5 +164,5 @@ make hooks                       # once: pre-commit runs check-secrets
 ## Status
 
 - **Hardware-verified:** "1b" layout with live CPU/mem/GPU charts, 6 service cells with uptimes, header LED/Wi-Fi/clock, IPs, host uptime, NTP, add-on builds from GitHub.
-- **Compiled only, not yet flashed:** the audit refactor (`2ce6565`: widget templates, merged fonts).
+- **Audit refactor flashed** (`2ce6565`). Metric values/axis labels went invisible inside the new containers; fixed by container `text_color`.
 - **Not yet seen on hardware:** offline banner, a DOWN cell, long-run ghosting, MENU long-press.

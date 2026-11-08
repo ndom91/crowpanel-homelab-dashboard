@@ -7,6 +7,9 @@ obj:
   width: 262
   height: 164
   styles: plain
+  # LVGL's theme gives every obj a dark-grey text colour, which breaks the
+  # page's black inheritance and renders white. Re-set it for the children.
+  text_color: 0x000000
   scrollable: false
   widgets:
     - label: { id: "cap_${key}", x: 7, y: 11, text: "${label}", text_font: f_title, text_letter_space: 1, styles: chip }
